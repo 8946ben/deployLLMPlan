@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM 推理部署规划器</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">◈</span>
+    <div>
+      <h1>LLM 推理部署规划器</h1>
+      <p>模型配置 → 框架选择 → 硬件画板 → 可行性与速度分析</p>
+    </div>
+  </div>
+  <div class="scenario-box">
+    <label for="scenarioSel">快速场景</label>
+    <select id="scenarioSel"></select>
+  </div>
+</header>
+
+<main class="app">
+  <!-- 左列:配置 -->
+  <section class="col-left">
+    <div class="panel" id="panel-model">
+      <h2><span class="step">①</span> 模型配置</h2>
+      <div class="row">
+        <select id="modelSel"></select>
+        <button id="importBtn" class="btn" title="导入 HuggingFace config.json">导入 config.json</button>
+        <input type="file" id="importFile" accept=".json" hidden>
+      </div>
+      <div class="grid3">
+        <label>层数<input id="m-layers" type="number" min="1"></label>
+        <label>隐藏维度<input id="m-hidden" type="number" min="1"></label>
+        <label>注意力头数<input id="m-heads" type="number" min="1"></label>
+        <label>KV头数 (GQA)<input id="m-kvheads" type="number" min="1"></label>
+        <label>头维度 <small>选填</small><input id="m-headdim" type="number" placeholder="自动"></label>
+        <label>KV缓存层数 <small>混合架构</small><input id="m-kvlayers" type="number" min="1" placeholder="=层数"></label>
+        <label>中间维度<input id="m-inter" type="number" min="1"></label>
+        <label>词表大小<input id="m-vocab" type="number" min="1"></label>
+        <label>原生上下文<input id="m-ctx" type="number" min="1"></label>
+        <label>共享词嵌入<input id="m-tied" type="checkbox" class="chk"></label>
+        <label>专家数 <small>稠密=1</small><input id="m-experts" type="number" min="1" value="1"></label>
+        <label>激活专家/token<input id="m-expertsActive" type="number" min="1" value="1"></label>
+      </div>
+      <div id="modelSummary" class="summary"></div>
+    </div>
+
+    <div class="panel" id="panel-fw">
+      <h2><span class="step">②</span> 推理框架</h2>
+      <div id="fwList" class="fw-list"></div>
+      <label class="field-label">量化格式</label>
+      <select id="quantSel"></select>
+      <div id="kvRow">
+        <label class="field-label">KV 缓存精度</label>
+        <select id="kvQuantSel"></select>
+      </div>
+      <p id="fwNote" class="fw-note"></p>
+    </div>
+
+    <div class="panel" id="panel-serve">
+      <h2><span class="step">③</span> 服务场景</h2>
+      <div class="grid3">
+        <label>服务上下文 (tokens)<input id="s-ctx" type="number" min="1" value="4096"></label>
+        <label>并发路数<input id="s-conc" type="number" min="1" value="1"></label>
+        <label>提示词长度 (TTFT用)<input id="s-prompt" type="number" min="1" value="1024"></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 中列:硬件库 + 画板 -->
+  <section class="col-center">
+    <div class="panel">
+      <h2><span class="step">④</span> 硬件库 <small class="hint">点击卡片或 + 添加,也可直接拖到画板</small></h2>
+      <h4>GPU</h4>
+      <div id="palGpu" class="palette"></div>
+      <h4>CPU 平台</h4>
+      <div id="palCpu" class="palette pal-narrow"></div>
+      <h4>内存</h4>
+      <div id="palRam" class="palette pal-narrow"></div>
+    </div>
+    <div class="panel board-panel">
+      <h2><span class="step">⑤</span> 部署画板 <button id="clearBoard" class="btn btn-sm">清空</button></h2>
+      <div id="boardTotals" class="board-totals"></div>
+      <div id="board" class="board"></div>
+    </div>
+  </section>
+
+  <!-- 右列:报告 -->
+  <section class="col-right">
+    <div class="panel report-panel">
+      <h2>📊 分析报告</h2>
+      <div id="report"></div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast"></div>
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
