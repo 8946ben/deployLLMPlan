@@ -14,7 +14,7 @@
 | ① 模型配置 | 内置 Qwen3.8-27B / Qwen3.8-Flash-Next / DeepSeek-V4-Flash / GLM-5.3-Flash / Qwen3 / Qwen2.5 / Llama3 等预设(新架构按官方 config.json 录入);可导入 HuggingFace `config.json`;支持 MoE、混合注意力(KV 缓存层数)、MLA 覆盖参数 |
 | ② 推理框架 | vLLM / llama.cpp / SGLang / TensorRT-LLM / HF Transformers,各自的量化格式(含 GGUF Q2~Q8、AWQ/GPTQ INT4、FP8)、KV 缓存精度、多卡策略(TP/层切分)、CPU 卸载能力 |
 | ③ 服务场景 | 服务上下文长度、并发路数、提示词长度(TTFT 估算用);KV 缓存按服务上下文计算,选中预设模型/导入 config.json 时**默认取模型原生上下文**,可随时修改 |
-| ④ 硬件库 | 20 款 GPU(V100/T4/3090/4090/5090/A10/L40S/A100/H100/**H200/B200/B300/RTX PRO 6000/DGX Spark**/MI250X/M2 Ultra)、4 款 CPU 平台、DDR5 内存条、**整机**(DGX-1、思腾合力服务器——添加时自动展开为 GPU/CPU/内存部件),点击或拖放到画板 |
+| ④ 硬件库 | 21 款 GPU(V100/V100S-PCIE/T4/3090/4090/5090/A10/L40S/A100/H100/**H200/B200/B300/RTX PRO 6000/DGX Spark**/MI250X/M2 Ultra)、5 款 CPU 平台、DDR5 内存条、**整机**(DGX-1 8×V100-32GB、思腾合力 3×V100S-PCIE——添加时自动展开为 GPU/CPU/内存部件,配置已 SSH 实测),点击或拖放到画板 |
 | ⑤ 部署画板 | 画板即集群:**每块 GPU 独立成节点**(8 块 V100 就画 8 张相连的卡),卡间按真实拓扑连线并标注速率——A100/H100 多卡经 NVSwitch 交换背板星型全互联,V100(NVLink2)画混合立方网格,PCIe 卡经主机星型;下方是 CPU 节点与内存节点(×N);互联方式可选/自动推断(NVLink 2/3/4/5、xGMI、PCIe 3/4/5、IB 400G、100GbE) |
 | 📊 分析报告 | ✅/⚠️/❌ 部署判定 + 原因;显存构成条形图(权重/KV/开销/缺口);架构兼容性检查清单;解码/预填充速度、TTFT、最大并发、总吞吐、瓶颈分析(含 TP 通信开销);可执行的改进建议;报告各项可**点击展开**查看代入实际数值的计算细节 |
 

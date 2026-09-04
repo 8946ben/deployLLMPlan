@@ -26,6 +26,7 @@ const MODELS = [
 const GPUS = [
   { id: 'v100-16',     name: 'NVIDIA V100-SXM2 16GB', vram: 16,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 2, pcieGen: 3, note: 'Volta · 无BF16/FP8' },
   { id: 'v100-32',     name: 'NVIDIA V100-SXM2 32GB', vram: 32,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 2, pcieGen: 3, note: 'Volta · 无BF16/FP8' },
+  { id: 'v100s-pcie',  name: 'NVIDIA Tesla V100S-PCIE 32GB', vram: 32, bw: 900, cc: 7.0, tf: 112, nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 3, note: 'Volta · 32GB PCIe版' },
   { id: 't4',          name: 'NVIDIA Tesla T4 16GB',  vram: 16,  bw: 320,  cc: 7.5,  tf: 65,  nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 3, note: '低功耗推理卡' },
   { id: 'rtx3090',     name: 'NVIDIA RTX 3090 24GB',  vram: 24,  bw: 936,  cc: 8.6,  tf: 71,  nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 4, note: 'Ampere 消费级' },
   { id: 'a10',         name: 'NVIDIA A10 24GB',       vram: 24,  bw: 600,  cc: 8.6,  tf: 125, nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 4, note: 'Ampere 数据中心' },
@@ -68,7 +69,8 @@ const CPUS = [
   { id: 'epyc-9654', name: 'AMD EPYC 9654 (96核)',  cores: 96, channels: 12, note: '12通道 DDR5 · 服务器' },
   { id: 'xeon-8480', name: 'Intel Xeon 8480+ (56核)', cores: 56, channels: 8, note: '8通道 DDR5 · 服务器' },
   { id: 'ryzen',     name: 'Ryzen 9 7950X (16核)',   cores: 16, channels: 2, note: '双通道 DDR5 · 消费级' },
-  { id: 'xeon-e5v4', name: 'Intel Xeon E5-2698 v4 ×2 (40核)', cores: 40, channels: 12, note: 'DGX-1 原装 · 双路 · DDR4' },
+  { id: 'xeon-e5v4', name: 'Intel Xeon E5-2698 v4 ×2 (40核)', cores: 40, channels: 12, note: 'DGX-1 原装 · 双路 Broadwell · DDR4' },
+  { id: 'xeon-gold-6326', name: 'Intel Xeon Gold 6326 ×2 (32核)', cores: 32, channels: 16, note: '思腾合力原装 · 双路 Ice Lake · DDR4-3200' },
 ];
 
 const RAMS = [
@@ -77,17 +79,17 @@ const RAMS = [
 ];
 
 /* 整机:预配置一体机,添加到画板时自动展开为组成部件(GPU/CPU/内存)。
-   spec 为录入配置:DGX-1 按官方规格;思腾合力为占位,以 note 标注待 SSH 核实(局域网管理地址) */
+   两台成员配置均已 SSH 实测核实(nvidia-smi / lscpu / free,2026-09-05) */
 const APPLIANCES = [
   {
-    id: 'dgx-1', name: 'NVIDIA DGX-1 · 8×V100 128GB', vendor: 'nvidia',
-    spec: { gpus: { 'v100-16': 8 }, cpus: { 'xeon-e5v4': 1 }, rams: { 'ddr5-64': 8 } },
-    note: '官方规格:8×V100-SXM2 16GB · NVLink2 · 512GB · ssh 124.16.70.19:7626',
+    id: 'dgx-1', name: 'NVIDIA DGX-1 · 8×V100-SXM2 256GB', vendor: 'nvidia',
+    spec: { gpus: { 'v100-32': 8 }, cpus: { 'xeon-e5v4': 1 }, rams: { 'ddr5-64': 8 } },
+    note: '实测:8×V100-SXM2-32GB · 双路E5-2698 v4 · 512GB · NVLink2 全互联(ssh 124.16.70.19:7626)',
   },
   {
-    id: 'siton-gpu', name: '思腾合力 GPU 服务器 · 8×V100 256GB', vendor: 'nvidia',
-    spec: { gpus: { 'v100-32': 8 }, cpus: { 'xeon-e5v4': 1 }, rams: { 'ddr5-64': 8 } },
-    note: '占位配置(8×V100-SXM2 32GB),待 SSH 核实 · ssh 124.16.71.7:7626',
+    id: 'siton-gpu', name: '思腾合力 GPU 服务器 · 3×V100S-PCIE 96GB', vendor: 'nvidia',
+    spec: { gpus: { 'v100s-pcie': 3 }, cpus: { 'xeon-gold-6326': 1 }, rams: { 'ddr5-64': 4 } },
+    note: '实测:3×V100S-PCIE-32GB · 双路Gold 6326 · 256GB · 无NVLink桥接,走PCIe(ssh 124.16.71.7:7626)',
   },
 ];
 
