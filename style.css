@@ -246,6 +246,19 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
 
 /* ---------- 集群拓扑(融入画板) ---------- */
 .ic-sel { margin-left: auto; max-width: 300px; min-width: 130px; font-size: 12px; padding: 4px 8px; }
+
+/* ---------- 整机分区(虚框,可整体移除) ---------- */
+.ap-region {
+  position: absolute; left: 0; z-index: 0;
+  border: 1.5px dashed #4f8cff77; border-radius: 12px; background: #4f8cff08;
+}
+.ap-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px 0 12px; }
+.ap-title { font-size: 12px; font-weight: 600; color: #9fc0ff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ap-close {
+  flex: none; width: 22px; height: 22px; border-radius: 6px; cursor: pointer; font-size: 12px; line-height: 1;
+  background: #f0616a1e; color: var(--red); border: 1px solid #f0616a55;
+}
+.ap-close:hover { background: #f0616a44; }
 .topo-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
 .topo-swbar {
   position: absolute; z-index: 1;
