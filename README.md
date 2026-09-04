@@ -64,6 +64,8 @@ index.html   页面骨架      style.css  深色主题样式
 data.js      硬件/模型/框架目录  engine.js  分析与估算引擎(纯函数)
 app.js       UI 交互       serve.js   可选本地服务器
 tests/run-tests.js  引擎测试
+CHANGELOG.md 更新日志      AGENTS.md  多会话协作规则
+tools/lock.js  会话范围锁
 ```
 
 扩展:在 `data.js` 中按现有格式追加 GPU/模型/框架即可,报告自动生效。
