@@ -1,0 +1,3 @@
+.session-locks/
+tmp-*.js
+tmp-check*.js

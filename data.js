@@ -21,23 +21,46 @@ const MODELS = [
   { id: 'llama-3.1-70b',    name: 'Llama-3.1-70B-Instruct', layers: 80, hidden: 8192, heads: 64, kvHeads: 8, inter: 28672, vocab: 128256, tied: false, maxCtx: 131072 },
 ];
 
-/* GPU: vram(GB) bw(GB/s,显存带宽) cc(CUDA计算能力,nvidia专有) tf(FP16 Tensor TFLOPS) nvlink fp8(支持FP8张量核心) */
+/* GPU: vram(GB) bw(GB/s,显存带宽) cc(CUDA计算能力,nvidia专有) tf(FP16 Tensor TFLOPS) nvlink fp8(支持FP8张量核心)
+   nvGen(NVLink代数,卡间聚合带宽见 INTERCONNECTS) pcieGen(PCIe代数) xgmi(AMD Infinity Fabric) */
 const GPUS = [
-  { id: 'v100-16',     name: 'NVIDIA V100-SXM2 16GB', vram: 16,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', note: 'Volta · 无BF16/FP8' },
-  { id: 'v100-32',     name: 'NVIDIA V100-SXM2 32GB', vram: 32,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', note: 'Volta · 无BF16/FP8' },
-  { id: 't4',          name: 'NVIDIA Tesla T4 16GB',  vram: 16,  bw: 320,  cc: 7.5,  tf: 65,  nvlink: false, fp8: false, vendor: 'nvidia', note: '低功耗推理卡' },
-  { id: 'rtx3090',     name: 'NVIDIA RTX 3090 24GB',  vram: 24,  bw: 936,  cc: 8.6,  tf: 71,  nvlink: false, fp8: false, vendor: 'nvidia', note: 'Ampere 消费级' },
-  { id: 'a10',         name: 'NVIDIA A10 24GB',       vram: 24,  bw: 600,  cc: 8.6,  tf: 125, nvlink: false, fp8: false, vendor: 'nvidia', note: 'Ampere 数据中心' },
-  { id: 'rtx4090',     name: 'NVIDIA RTX 4090 24GB',  vram: 24,  bw: 1008, cc: 8.9,  tf: 165, nvlink: false, fp8: true,  vendor: 'nvidia', note: 'Ada · 支持FP8' },
-  { id: 'rtx5090',     name: 'NVIDIA RTX 5090 32GB',  vram: 32,  bw: 1792, cc: 12.0, tf: 209, nvlink: false, fp8: true,  vendor: 'nvidia', note: 'Blackwell · 需新软件栈' },
-  { id: 'l40s',        name: 'NVIDIA L40S 48GB',      vram: 48,  bw: 864,  cc: 8.9,  tf: 181, nvlink: false, fp8: true,  vendor: 'nvidia', note: 'Ada · 大显存推理卡' },
-  { id: 'a100-40',     name: 'NVIDIA A100-SXM4 40GB', vram: 40,  bw: 1555, cc: 8.0,  tf: 312, nvlink: true,  fp8: false, vendor: 'nvidia', note: 'Ampere · 原生BF16' },
-  { id: 'a100-80',     name: 'NVIDIA A100-SXM4 80GB', vram: 80,  bw: 2039, cc: 8.0,  tf: 312, nvlink: true,  fp8: false, vendor: 'nvidia', note: 'Ampere · 原生BF16' },
-  { id: 'a100-80-pcie',name: 'NVIDIA A100-PCIe 80GB', vram: 80,  bw: 1935, cc: 8.0,  tf: 312, nvlink: false, fp8: false, vendor: 'nvidia', note: 'PCIe版 · 无NVLink' },
-  { id: 'h100',        name: 'NVIDIA H100-SXM5 80GB', vram: 80,  bw: 3350, cc: 9.0,  tf: 990, nvlink: true,  fp8: true,  vendor: 'nvidia', note: 'Hopper · FP8' },
-  { id: 'h100-pcie',   name: 'NVIDIA H100-PCIe 80GB', vram: 80,  bw: 2000, cc: 9.0,  tf: 756, nvlink: false, fp8: true,  vendor: 'nvidia', note: 'Hopper PCIe版' },
-  { id: 'mi250x',      name: 'AMD MI250X 64GB',       vram: 64,  bw: 1638, cc: null, tf: 383, nvlink: true,  fp8: false, vendor: 'amd',    note: 'CDNA2 · ROCm' },
+  { id: 'v100-16',     name: 'NVIDIA V100-SXM2 16GB', vram: 16,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 2, pcieGen: 3, note: 'Volta · 无BF16/FP8' },
+  { id: 'v100-32',     name: 'NVIDIA V100-SXM2 32GB', vram: 32,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 2, pcieGen: 3, note: 'Volta · 无BF16/FP8' },
+  { id: 't4',          name: 'NVIDIA Tesla T4 16GB',  vram: 16,  bw: 320,  cc: 7.5,  tf: 65,  nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 3, note: '低功耗推理卡' },
+  { id: 'rtx3090',     name: 'NVIDIA RTX 3090 24GB',  vram: 24,  bw: 936,  cc: 8.6,  tf: 71,  nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 4, note: 'Ampere 消费级' },
+  { id: 'a10',         name: 'NVIDIA A10 24GB',       vram: 24,  bw: 600,  cc: 8.6,  tf: 125, nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 4, note: 'Ampere 数据中心' },
+  { id: 'rtx4090',     name: 'NVIDIA RTX 4090 24GB',  vram: 24,  bw: 1008, cc: 8.9,  tf: 165, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 4, note: 'Ada · 支持FP8' },
+  { id: 'rtx5090',     name: 'NVIDIA RTX 5090 32GB',  vram: 32,  bw: 1792, cc: 12.0, tf: 209, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, note: 'Blackwell · 需新软件栈' },
+  { id: 'l40s',        name: 'NVIDIA L40S 48GB',      vram: 48,  bw: 864,  cc: 8.9,  tf: 181, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 4, note: 'Ada · 大显存推理卡' },
+  { id: 'a100-40',     name: 'NVIDIA A100-SXM4 40GB', vram: 40,  bw: 1555, cc: 8.0,  tf: 312, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 3, pcieGen: 4, note: 'Ampere · 原生BF16' },
+  { id: 'a100-80',     name: 'NVIDIA A100-SXM4 80GB', vram: 80,  bw: 2039, cc: 8.0,  tf: 312, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 3, pcieGen: 4, note: 'Ampere · 原生BF16' },
+  { id: 'a100-80-pcie',name: 'NVIDIA A100-PCIe 80GB', vram: 80,  bw: 1935, cc: 8.0,  tf: 312, nvlink: false, fp8: false, vendor: 'nvidia', nvGen: 3, pcieGen: 4, note: 'PCIe版 · 卡间无NVLink' },
+  { id: 'h100',        name: 'NVIDIA H100-SXM5 80GB', vram: 80,  bw: 3350, cc: 9.0,  tf: 990, nvlink: true,  fp8: true,  vendor: 'nvidia', nvGen: 4, pcieGen: 5, note: 'Hopper · FP8 · NVSwitch' },
+  { id: 'h100-pcie',   name: 'NVIDIA H100-PCIe 80GB', vram: 80,  bw: 2000, cc: 9.0,  tf: 756, nvlink: false, fp8: true,  vendor: 'nvidia', nvGen: 4, pcieGen: 5, note: 'Hopper PCIe版' },
+  { id: 'h200',        name: 'NVIDIA H200 SXM 141GB', vram: 141, bw: 4800, cc: 9.0,  tf: 990, nvlink: true,  fp8: true,  vendor: 'nvidia', nvGen: 4, pcieGen: 5, note: 'Hopper · 141GB HBM3e' },
+  { id: 'b200',        name: 'NVIDIA B200 SXM 180GB', vram: 180, bw: 8000, cc: 10.0, tf: 2250, nvlink: true,  fp8: true,  vendor: 'nvidia', nvGen: 5, pcieGen: 5, note: 'Blackwell · FP8/FP4 · NVSwitch' },
+  { id: 'b300',        name: 'NVIDIA B300 (Blackwell Ultra) 288GB', vram: 288, bw: 8000, cc: 10.0, tf: 2250, nvlink: true, fp8: true, vendor: 'nvidia', nvGen: 5, pcieGen: 5, note: 'Blackwell Ultra · 288GB HBM3e' },
+  { id: 'rtxpro6000',  name: 'NVIDIA RTX PRO 6000 96GB', vram: 96, bw: 1600, cc: 12.0, tf: 500, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, note: 'Blackwell 工作站 · 96GB GDDR7' },
+  { id: 'mi250x',      name: 'AMD MI250X 64GB',       vram: 64,  bw: 1638, cc: null, tf: 383, nvlink: true,  fp8: false, vendor: 'amd',    xgmi: true, pcieGen: 4, note: 'CDNA2 · ROCm · xGMI' },
   { id: 'm2ultra',     name: 'Apple M2 Ultra 192GB',  vram: 192, bw: 819,  cc: null, tf: 27,  nvlink: false, fp8: false, vendor: 'apple', note: '统一内存 · 仅llama.cpp' },
+  { id: 'dspark',      name: 'NVIDIA DGX Spark 128GB', vram: 128, bw: 273, cc: 12.0, tf: 125, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, note: 'GB10 统一内存 · 桌面级' },
+];
+
+/* 互联方式: bw = 卡间有效带宽 GB/s(单向),lat = 每次 allreduce 近似延迟 µs
+   fabric: NVLink/NVSwitch 类高速域内互联;pcie: 走主机 PCIe;net: 跨节点网络 */
+const INTERCONNECTS = [
+  { id: 'auto',    name: '自动(按GPU推断)',      bw: 0,    lat: 0,  type: 'auto' },
+  { id: 'nvlink2', name: 'NVLink 2.0 (V100)',   bw: 300,  lat: 6,  type: 'fabric' },
+  { id: 'nvlink3', name: 'NVLink 3.0 (A100)',   bw: 600,  lat: 5,  type: 'fabric' },
+  { id: 'nvlink4', name: 'NVLink 4.0 (H100)',   bw: 900,  lat: 5,  type: 'fabric' },
+  { id: 'nvlink5', name: 'NVLink 5.0 (B200)',   bw: 1800, lat: 4,  type: 'fabric' },
+  { id: 'xgmi',    name: 'xGMI/Infinity Fabric', bw: 800,  lat: 6,  type: 'fabric' },
+  { id: 'pcie3',   name: 'PCIe 3.0 x16',        bw: 16,   lat: 25, type: 'pcie' },
+  { id: 'pcie4',   name: 'PCIe 4.0 x16',        bw: 32,   lat: 20, type: 'pcie' },
+  { id: 'pcie5',   name: 'PCIe 5.0 x16',        bw: 64,   lat: 15, type: 'pcie' },
+  { id: 'ib400',   name: 'InfiniBand NDR 400G', bw: 50,   lat: 10, type: 'net' },
+  { id: 'eth100',  name: 'Ethernet 100GbE',     bw: 12.5, lat: 30, type: 'net' },
+  { id: 'unified', name: '统一内存(片上)',       bw: 0,    lat: 0,  type: 'unified' },
 ];
 
 /* CPU平台: cores(核心数) channels(内存通道数,每通道DDR5-4800约38.4GB/s) */
@@ -180,5 +203,10 @@ const SCENARIOS = [
     id: 'demo-qwen38next', name: '示例H: Qwen3.8-Flash-Next Q4 + M2 Ultra · llama.cpp',
     model: 'qwen3.8-flash-next', fw: 'llamacpp', quant: 'q4km', kvQuant: 'f16', ctx: 16384, conc: 1,
     board: [['gpu', 'm2ultra']],
+  },
+  {
+    id: 'demo-4090x2', name: '示例I: Qwen3-32B AWQ + 2×RTX4090 TP2 · vLLM (PCIe)',
+    model: 'qwen3-32b', fw: 'vllm', quant: 'awq', kvQuant: 'fp16', ctx: 8192, conc: 4,
+    board: [['gpu', 'rtx4090'], ['gpu', 'rtx4090']],
   },
 ];

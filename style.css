@@ -212,6 +212,56 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
 .suggestions li { font-size: 12.5px; background: #4f8cff10; border: 1px solid #4f8cff30; border-radius: 8px; padding: 7px 10px; }
 .disclaimer { font-size: 10.5px; color: #5d6a7d; margin-top: 14px; }
 
+/* ---------- 报告可展开计算细节 ---------- */
+.hint-exp { font-weight: 400; font-size: 10.5px; color: #5d6a7d; margin-left: 4px; }
+[data-exp] { cursor: pointer; }
+.chev {
+  display: inline-block; margin-left: 7px; font-size: 10px; opacity: .55;
+  transition: transform .15s; vertical-align: 1px;
+}
+.open > .chev, .open .chev { transform: rotate(90deg); }
+.banner.exp { padding-right: 12px; }
+.banner.exp:hover { filter: brightness(1.15); }
+.exp-row:hover td { background: #ffffff06; }
+.row-detail td {
+  background: #0d1420; font-size: 11.5px; color: #a8b5c8; padding: 8px 12px !important;
+  line-height: 1.85; font-family: Consolas, "Courier New", monospace;
+}
+.exp-panel {
+  margin-top: 8px; background: #0d1420; border: 1px solid var(--border2); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 8px 12px; font-size: 11.5px; color: #a8b5c8; line-height: 1.85;
+  font-family: Consolas, "Courier New", monospace; overflow-x: auto;
+}
+.exp-panel.spd-panel { margin-top: 2px; }
+.stat.exp:hover { border-color: #4f8cff88; }
+.stat.open { border-color: var(--accent); background: #4f8cff0d; }
+.layer-line.exp, .bottleneck-line.exp:hover { cursor: pointer; }
+.layer-line.exp:hover, .bottleneck-line.exp:hover { background: #1a2333; }
+.layer-line.open, .bottleneck-line.open { border-left: 3px solid var(--accent); }
+
+/* ---------- 集群拓扑 ---------- */
+.topo-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
+.topo-head > span { font-size: 12px; color: var(--muted); font-weight: 600; }
+.ic-sel { max-width: 320px; font-size: 12px; padding: 4px 8px; }
+.topo { margin-top: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 6px 2px; }
+.topo svg { width: 100%; height: auto; display: block; }
+.topo-empty { color: var(--muted); text-align: center; padding: 22px 0; font-size: 12px; }
+.topo-node rect { fill: #1a2333; stroke: #2e3a50; stroke-width: 1.2; }
+.topo-node.g rect { stroke: #76b90077; }
+.topo-node.c rect { stroke: #4f8cff77; }
+.topo-node.r rect { stroke: #e0a45877; }
+.topo-node.sw rect { stroke: #b083f077; fill: #1c1828; }
+.topo-node .t { fill: #dbe4f0; font-size: 10.5px; text-anchor: middle; font-weight: 600; }
+.topo-node .s { fill: #8a97ab; font-size: 9px; text-anchor: middle; }
+.topo-link { stroke-width: 2; fill: none; }
+.topo-link.fab { stroke: #76b900; stroke-opacity: .7; }
+.topo-link.pcie { stroke: #e0a458; stroke-opacity: .5; stroke-dasharray: 5 3; }
+.topo-link.ram { stroke: #4f8cff; stroke-opacity: .55; }
+.topo-label { font-size: 9.5px; }
+.topo-label.fab { fill: #8fdc4f; }
+.topo-label.pcie { fill: #e0a458; }
+.topo-label.ram { fill: #6fa8ff; }
+
 /* ---------- Toast ---------- */
 .toast {
   position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%) translateY(20px);

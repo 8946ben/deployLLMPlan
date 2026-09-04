@@ -149,6 +149,22 @@ const n = run(model('llama-3.1-8b'), 'vllm', 'fp16', 'fp16', 4096, 1, ['a100-40'
 assert(n.verdict === 'ok' || n.verdict === 'warn', '混合卡可运行');
 assert(n.checks.some(x => x.level === 'warn' && x.msg.includes('相同型号')), '提示使用相同型号');
 
+console.log('== 互联与集群拓扑 ==');
+assert(resolveInterconnect([gpu('v100-32'), gpu('v100-32')]).id === 'nvlink2', 'V100×2 自动 → NVLink2 (300GB/s)');
+assert(resolveInterconnect([gpu('h100'), gpu('h100'), gpu('h100'), gpu('h100')]).id === 'nvlink4', 'H100×4 自动 → NVLink4 (900GB/s)');
+assert(resolveInterconnect([gpu('rtx4090'), gpu('rtx4090')]).id === 'pcie4', '4090×2 自动 → PCIe4 (32GB/s)');
+assert(resolveInterconnect([gpu('a100-80'), gpu('rtx4090')]).id === 'pcie4', 'A100+4090 混合 → PCIe4');
+assert(resolveInterconnect([gpu('mi250x'), gpu('mi250x')]).id === 'xgmi', 'MI250X×2 → xGMI');
+assert(resolveInterconnect([gpu('m2ultra')]).id === 'unified', 'Apple → 统一内存');
+const p4 = run(model('llama-3.1-8b'), 'vllm', 'fp16', 'fp16', 4096, 1, ['rtx4090', 'rtx4090', 'rtx4090', 'rtx4090']);
+assert(p4.checks.some(c => c.level === 'warn' && c.msg.includes('PCIe')), 'PCIe TP 触发通信告警: ' + ((p4.checks.find(c => c.msg.includes('PCIe')) || {}).msg || '').slice(0, 40) + '...');
+const icNv4 = INTERCONNECTS.find(i => i.id === 'nvlink4');
+const n4 = analyze({ model: model('llama-3.1-8b'), fw: fw('vllm'), quant: fw('vllm').quants[0], kvQuant: fw('vllm').kvQuants[0], ctx: 4096, conc: 1, promptLen: 1024, gpus: ['rtx4090', 'rtx4090', 'rtx4090', 'rtx4090'].map(gpu), cpus: [], rams: [], ic: icNv4 });
+assert(n4.speed.decodeTps > p4.speed.decodeTps * 1.15, '假设 NVLink4 后 TP4 解码显著快于 PCIe: ' + n4.speed.decodeTps.toFixed(0) + ' vs ' + p4.speed.decodeTps.toFixed(0) + ' tok/s');
+assert(p4.speed.tpCommMs > n4.speed.tpCommMs * 2, 'PCIe 通信开销远大于 NVLink: ' + (p4.speed.tpCommMs * 1000).toFixed(0) + 'µs vs ' + (n4.speed.tpCommMs * 1000).toFixed(0) + 'µs');
+const pipeIc = run(model('qwen3-32b'), 'llamacpp', 'q4km', 'f16', 4096, 1, ['v100-32', 'v100-32']);
+assert(pipeIc.checks.some(c => c.level === 'info' && c.msg.includes('层切分')), '层切分模式显示互联 info 说明');
+
 console.log(failed === 0 ? '\\nALL PASSED' : '\\n' + failed + ' FAILED');
 process.exit(failed === 0 ? 0 : 1);
 `;
