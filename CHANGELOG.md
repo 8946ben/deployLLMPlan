@@ -5,14 +5,17 @@
 ## [未发布]
 
 ### 新增
+- **FPGA 硬件类**:新增 Alinx AXU9EGB (ZU9EG) 开发板,规格取自 LLM_FPGA 实测工程(PS DDR4 4GB/64bit,实测 DDR4-1600 ≈12.8GB/s,2520 DSP,Module16 LM Head 已上板验收);FPGA 走自定义 HLS 运行时估算——选 vLLM/SGLang/TRT-LLM 会被拦截,llama.cpp/Transformers 作带宽受限代理并提示为上界;画板上经千兆以太网(1GbE)接入主机
 - **整机类硬件**:硬件库新增「整机」分类,添加到画板时自动展开为组成部件(GPU/CPU/内存),接入既有分析与拓扑逻辑;首批成员 **NVIDIA DGX-1**(8×V100-SXM2-32GB · 双路E5-2698 v4 · 512GB · NVLink2 全互联)与**思腾合力 GPU 服务器**(3×V100S-PCIE-32GB · 双路Gold 6326 · 256GB · 无NVLink桥接走 PCIe),两台配置均已 SSH 实测核实(nvidia-smi/lscpu/free)
-- GPU 目录新增 Tesla V100S-PCIE 32GB(Volta PCIe 版,共 21 款);CPU 平台新增 Intel Xeon E5-2698 v4 ×2 与 Xeon Gold 6326 ×2(共 5 款)
+- GPU 目录新增 Tesla V100S-PCIE 32GB(Volta PCIe 版);CPU 平台新增 Intel Xeon E5-2698 v4 ×2 与 Xeon Gold 6326 ×2
 
 ### 变更
 - **部署画板重构为「画板即集群」**:每块 GPU 独立成节点,卡间按真实拓扑连线并标注速率(A100/H100 多卡经 NVSwitch 星型全互联,V100 混合立方网格,PCIe 卡经主机星型),CPU/内存节点画在下方;原独立拓扑面板移除,互联方式选择器移入画板标题栏
+- GPU 库中的整机成员移入「整机」类:Apple M2 Ultra(Mac Studio)与 DGX Spark(GB10 桌面机)从 GPU 卡列表改为整机成员(添加时按整机展开,GPU/CPU/内存一体的 SoC 不再拆分),GPU 卡列表 21 → 19 款;整机类现有 4 成员
+- FPGA+GPU 混插仍被混合厂商检查拦截(异构算子卸载暂不建模)
 
 ### 修复
-- README 硬件库行误回退为 15 款 GPU,与 data.js 实际 20 款不符,已恢复
+- README 硬件库行误回退为 15 款 GPU,与 data.js 实际不符,已恢复
 
 ## [0.2.0] - 2026-09-05(591f9c8)
 

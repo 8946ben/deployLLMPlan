@@ -128,6 +128,7 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
 .vendor-nvidia .pal-spec { color: #76b900; }
 .vendor-amd .pal-spec { color: #ed4c5c; }
 .vendor-apple .pal-spec { color: #c9cdd4; }
+.vendor-fpga .pal-spec { color: #22d3ee; }
 
 /* ---------- 画板 ---------- */
 .board-panel { position: sticky; top: 76px; }
@@ -155,6 +156,7 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
 .board-item.type-gpu { border-left: 3px solid #76b900; }
 .board-item.type-cpu { border-left: 3px solid #4f8cff; }
 .board-item.type-ram { border-left: 3px solid #e0a458; }
+.board-item.type-fpga { border-left: 3px solid #22d3ee; }
 .bi-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
 .bi-name { font-size: 12.5px; font-weight: 600; }
 .bi-count { font-size: 13px; color: var(--accent); font-weight: 700; }
@@ -256,10 +258,12 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
 .topo-link.fab { stroke: #76b900; stroke-opacity: .7; }
 .topo-link.pcie { stroke: #e0a458; stroke-opacity: .5; stroke-dasharray: 5 3; }
 .topo-link.ram { stroke: #4f8cff; stroke-opacity: .55; }
+.topo-link.net { stroke: #22d3ee; stroke-opacity: .5; stroke-dasharray: 2 4; }
 .topo-label { font-size: 9.5px; }
 .topo-label.fab { fill: #8fdc4f; }
 .topo-label.pcie { fill: #e0a458; }
 .topo-label.ram { fill: #6fa8ff; }
+.topo-label.net { fill: #22d3ee; }
 
 /* ---------- Toast ---------- */
 .toast {

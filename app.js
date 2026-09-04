@@ -21,7 +21,7 @@ const byId = (list, id) => list.find(x => x.id === id);
 const curFw = () => byId(FRAMEWORKS, state.fwId);
 const curQuant = () => byId(curFw().quants, state.quantId) || curFw().quants[0];
 const curKvQuant = () => byId(curFw().kvQuants, state.kvQuantId) || curFw().kvQuants[0];
-const boardItems = (type) => state.board.filter(b => b.type === type).map(b => byId(type === 'gpu' ? GPUS : type === 'cpu' ? CPUS : RAMS, b.refId)).filter(Boolean);
+const boardItems = (type) => state.board.filter(b => b.type === type).map(b => byId(type === 'gpu' ? GPUS : type === 'cpu' ? CPUS : type === 'fpga' ? FPGAS : RAMS, b.refId)).filter(Boolean);
 
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
@@ -138,9 +138,15 @@ function buildPalette() {
       '<div class="pal-spec">' + esc(gp) + '</div>' +
       '<div class="pal-note">' + esc(a.note) + '</div><button class="add-btn" title="整机展开添加到画板">+</button></div>';
   };
-  $('#palGpu').innerHTML = GPUS.map(gpuCard).join('');
+  const fpgaCard = (f) =>
+    '<div class="pal-card vendor-fpga" draggable="true" data-type="fpga" data-id="' + f.id + '">' +
+    '<div class="pal-name">🔧 ' + esc(f.name) + '</div>' +
+    '<div class="pal-spec">' + f.vram + 'GB · ' + f.bw + 'GB/s · ' + (f.tf >= 1 ? f.tf.toFixed(0) : (f.tf * 1000).toFixed(0) + 'G') + ' FLOPS等效</div>' +
+    '<div class="pal-note">' + esc(f.note) + '</div><button class="add-btn" title="添加到画板">+</button></div>';
+  $('#palGpu').innerHTML = GPUS.filter(g => !g.hidden).map(gpuCard).join('');
   $('#palCpu').innerHTML = CPUS.map(cpuCard).join('');
   $('#palRam').innerHTML = RAMS.map(ramCard).join('');
+  $('#palFpga').innerHTML = FPGAS.map(fpgaCard).join('');
   $('#palApp').innerHTML = APPLIANCES.map(appCard).join('');
   $$('.pal-card').forEach(el => {
     el.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', el.dataset.type + ':' + el.dataset.id); e.dataTransfer.effectAllowed = 'copy'; });
@@ -187,18 +193,20 @@ function groupBoardBy(type) {
 
 function renderBoard() {
   const wrap = $('#board');
-  const gpus = boardItems('gpu'), cpus = boardItems('cpu'), rams = boardItems('ram');
-  const ic = resolveInterconnect(gpus, state.icId);
+  const gpus = boardItems('gpu'), fpgas = boardItems('fpga'), cpus = boardItems('cpu'), rams = boardItems('ram');
+  const accel = gpus.concat(fpgas);
+  const ic = resolveInterconnect(accel, state.icId);
 
   // 汇总条
-  const vram = gpus.reduce((s, g) => s + g.vram, 0);
-  const bwSum = gpus.reduce((s, g) => s + g.bw, 0);
+  const vram = accel.reduce((s, g) => s + g.vram, 0);
+  const bwSum = accel.reduce((s, g) => s + g.bw, 0);
   const ramGB = rams.reduce((s, r) => s + r.gb, 0);
   const icText = ic ? (ic.bw ? ic.name.split(' (')[0] + ' · <b>' + ic.bw + '</b> GB/s' : ic.name) : '—';
   $('#boardTotals').innerHTML =
-    '<span>GPU <b>' + gpus.length + '</b> 块</span><span>显存 <b>' + vram + '</b> GB</span>' +
+    '<span>GPU <b>' + gpus.length + '</b> 块</span>' + (fpgas.length ? '<span>FPGA <b>' + fpgas.length + '</b> 块</span>' : '') +
+    '<span>显存 <b>' + vram + '</b> GB</span>' +
     '<span>带宽合计 <b>' + bwSum + '</b> GB/s</span>' +
-    '<span>互联 <b>' + (gpus.length > 1 ? icText : '单卡') + '</b></span>' +
+    '<span>互联 <b>' + (accel.length > 1 ? icText : (accel.length ? '单设备' : '—')) + '</b></span>' +
     '<span>CPU <b>' + cpus.length + '</b> 个平台</span><span>内存 <b>' + ramGB + '</b> GB</span>';
   const autoOpt = $('#icSel option[value="auto"]');
   if (autoOpt) autoOpt.textContent = ic ? '自动 — ' + ic.name.split(' (')[0] + (ic.bw ? ' (' + ic.bw + ' GB/s)' : '') : '自动(按GPU推断)';
@@ -209,9 +217,9 @@ function renderBoard() {
     return;
   }
 
-  /* ---- 布局:每块 GPU 一张独立卡,最多 4 列;其下依次是 NVLink 交换背板 / 主机(CPU) / 内存 ---- */
+  /* ---- 布局:每块 GPU/FPGA 一张独立卡,最多 4 列;其下依次是 NVLink 交换背板 / 主机(CPU) / 内存 ---- */
   const NW = 150, NH = 100, GX = 26, GY = 48, PAD = 12;
-  const gpuList = state.board.filter(b => b.type === 'gpu');
+  const gpuList = state.board.filter(b => b.type === 'gpu' || b.type === 'fpga');
   const n = gpuList.length;
   const cols = n <= 4 ? Math.max(n, 1) : 4;
   const rows = Math.ceil(n / cols);
@@ -262,11 +270,12 @@ function renderBoard() {
     if (n >= 2) text((gpuCs[0].x + gpuCs[1].x) / 2, Math.min(gpuCs[0].y, gpuCs[1].y) - 9, icLabel + (n <= 4 ? ' · 全互联' : ' · 网格互联'), 'fab');
   }
   if (n >= 1) {
-    const pgen = Math.min(...gpus.map(g => g.pcieGen || 3));
+    const pgen = Math.min(...accel.map(g => g.pcieGen || 3));
     const pTxt = (ic && (ic.type === 'pcie' || ic.type === 'net')) ? icLabel + (ic.type === 'net' ? ' (跨节点)' : '') : 'PCIe ' + pgen + '.0 x16 · ' + (pgen >= 5 ? 64 : pgen >= 4 ? 32 : 16) + ' GB/s';
-    if (useSwitch && sw) line({ x: cx, y: sw.y + sw.h }, { x: hostC.x, y: hostY }, 'pcie');
-    else for (const c of gpuCs) line(c, hostC, 'pcie');
-    text(cx, hostY - 9, pTxt, 'pcie');
+    const linkCls = (ic && ic.type === 'net') ? 'net' : 'pcie';
+    if (useSwitch && sw) line({ x: cx, y: sw.y + sw.h }, { x: hostC.x, y: hostY }, linkCls);
+    else for (const c of gpuCs) line(c, hostC, linkCls);
+    text(cx, hostY - 9, pTxt, linkCls);
   }
   if (ic && ic.type === 'unified' && n) {
     T.push('<text class="topo-label ram" x="' + cx.toFixed(0) + '" y="' + (hostY - 26) + '" text-anchor="middle">统一内存架构:权重与 KV 共享 ' + gpus[0].bw + ' GB/s 带宽</text>');
@@ -285,12 +294,14 @@ function renderBoard() {
   if (sw) html += '<div class="topo-swbar" style="left:' + sw.x + 'px;top:' + sw.y + 'px;width:' + sw.w + 'px;height:' + sw.h + 'px">' +
     (ic.id === 'xgmi' ? 'IF 总线 (xGMI)' : 'NVSwitch / NVLink 交换背板') + ' · ' + esc(icLabel) + '</div>';
   const card = (b, x, yy, cnt) => {
-    const cat = { gpu: GPUS, cpu: CPUS, ram: RAMS }[b.type];
+    const cat = { gpu: GPUS, cpu: CPUS, ram: RAMS, fpga: FPGAS }[b.type];
     const it = byId(cat, b.refId);
     const spec = b.type === 'gpu' ? it.vram + 'GB · ' + it.bw + 'GB/s' + (it.vendor === 'nvidia' ? ' · CC' + it.cc : '')
+      : b.type === 'fpga' ? it.vram + 'GB DDR4 · ' + it.bw + 'GB/s'
       : b.type === 'cpu' ? it.cores + '核 · ' + it.channels + '通道' : it.gb + 'GB · ' + it.bw + 'GB/s';
+    const icon = b.type === 'gpu' ? '🖧' : b.type === 'fpga' ? '🔧' : b.type === 'cpu' ? '🧠' : '🧩';
     return '<div class="board-item type-' + b.type + '" style="left:' + x.toFixed(0) + 'px;top:' + yy.toFixed(0) + 'px" data-key="' + b.type + ':' + b.refId + '">' +
-      '<div class="bi-head"><span class="bi-name">' + (b.type === 'gpu' ? '🖧' : b.type === 'cpu' ? '🧠' : '🧩') + ' ' + esc(shortN(it)) + '</span>' + (cnt > 1 ? '<span class="bi-count">×' + cnt + '</span>' : '') + '</div>' +
+      '<div class="bi-head"><span class="bi-name">' + icon + ' ' + esc(shortN(it)) + '</span>' + (cnt > 1 ? '<span class="bi-count">×' + cnt + '</span>' : '') + '</div>' +
       '<div class="bi-spec">' + spec + '</div>' +
       '<div class="bi-ops"><button data-op="inc">+1</button><button data-op="dec">−1</button><button data-op="del" class="danger">移除</button></div></div>';
   };
@@ -321,11 +332,12 @@ function renderBoard() {
 const expandedDetails = new Set();
 
 function renderReport() {
+  const accel = boardItems('gpu').concat(boardItems('fpga'));
   const result = analyze({
     model: state.model, fw: curFw(), quant: curQuant(), kvQuant: curKvQuant(),
     ctx: state.ctx, conc: state.conc, promptLen: state.promptLen,
-    gpus: boardItems('gpu'), cpus: boardItems('cpu'), rams: boardItems('ram'),
-    ic: resolveInterconnect(boardItems('gpu'), state.icId),
+    gpus: accel, cpus: boardItems('cpu'), rams: boardItems('ram'),
+    ic: resolveInterconnect(accel, state.icId),
   });
   const m = result.mem, s = result.speed, D = result.details;
   const scale = Math.max(m.requiredB, m.totalVramB, 1);
@@ -503,7 +515,7 @@ function bindEvents() {
     e.preventDefault(); board.classList.remove('dragover');
     const data = e.dataTransfer.getData('text/plain');
     const [type, id] = data.split(':');
-    if (type === 'gpu' || type === 'cpu' || type === 'ram' || type === 'appliance') addItem(type, id);
+    if (type === 'gpu' || type === 'cpu' || type === 'ram' || type === 'appliance' || type === 'fpga') addItem(type, id);
   });
   $('#clearBoard').addEventListener('click', () => { state.board = []; renderBoard(); renderReport(); saveState(); });
   $('#icSel').innerHTML = INTERCONNECTS.map(i => '<option value="' + i.id + '">' + esc(i.name + (i.bw ? ' · ' + i.bw + ' GB/s' : '')) + '</option>').join('');

@@ -77,6 +77,7 @@ function resolveInterconnect(gpus, icId) {
     return INTERCONNECTS.find(i => i.id === (gen >= 5 ? 'pcie5' : gen >= 4 ? 'pcie4' : 'pcie3'));
   };
   if (vendors.has('apple')) return INTERCONNECTS.find(i => i.id === 'unified');
+  if (vendors.has('fpga')) return INTERCONNECTS.find(i => i.id === 'eth1g'); // FPGA 开发板经千兆网接主机(与 LLM_FPGA 工程实测链路一致)
   if (vendors.size > 1) return pcieOf(gpus);
   if (vendors.has('nvidia')) {
     const gen = Math.min(...gpus.map(g => g.nvGen || 0));
@@ -156,6 +157,10 @@ function analyze(cfg) {
     }
   }
   if (new Set(gpus.map(g => g.vendor)).size > 1) addCheck('fail', '不支持混合厂商 GPU 部署。');
+  if (gpus.some(g => g.vendor === 'fpga')) {
+    if (!fw.fpga) addCheck('fail', 'FPGA 推理走自定义 HLS 运行时(如 FlightLLM 类),' + fw.name + ' 不直接支持;估算请改用 llama.cpp / HF Transformers 作带宽受限代理。');
+    else addCheck('warn', 'FPGA 为自定义 HLS 运行时估算:解码按板载 DDR4 带宽、预填充按 INT8 等效算力(当前串行核未并行化),均为上界参考。');
+  }
   if (fw.linux) addCheck('info', fw.name + ' 需要 Linux 环境(Windows 可用 WSL2)。');
   if (ctx > model.maxCtx) addCheck('warn', '上下文 ' + fmtK(ctx) + ' 超出模型原生上限 ' + fmtK(model.maxCtx) + ',需 RoPE 外推,精度可能下降。');
   if (gpus.length > 1 && fw.tp === 'tensor') {

@@ -22,7 +22,8 @@ const MODELS = [
 ];
 
 /* GPU: vram(GB) bw(GB/s,显存带宽) cc(CUDA计算能力,nvidia专有) tf(FP16 Tensor TFLOPS) nvlink fp8(支持FP8张量核心)
-   nvGen(NVLink代数,卡间聚合带宽见 INTERCONNECTS) pcieGen(PCIe代数) xgmi(AMD Infinity Fabric) */
+   nvGen(NVLink代数,卡间聚合带宽见 INTERCONNECTS) pcieGen(PCIe代数) xgmi(AMD Infinity Fabric)
+   hidden:true = 实为整机(Mac Studio/DGX Spark),不出现在 GPU 调色板,由整机类引用 */
 const GPUS = [
   { id: 'v100-16',     name: 'NVIDIA V100-SXM2 16GB', vram: 16,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 2, pcieGen: 3, note: 'Volta · 无BF16/FP8' },
   { id: 'v100-32',     name: 'NVIDIA V100-SXM2 32GB', vram: 32,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 2, pcieGen: 3, note: 'Volta · 无BF16/FP8' },
@@ -43,8 +44,8 @@ const GPUS = [
   { id: 'b300',        name: 'NVIDIA B300 (Blackwell Ultra) 288GB', vram: 288, bw: 8000, cc: 10.0, tf: 2250, nvlink: true, fp8: true, vendor: 'nvidia', nvGen: 5, pcieGen: 5, note: 'Blackwell Ultra · 288GB HBM3e' },
   { id: 'rtxpro6000',  name: 'NVIDIA RTX PRO 6000 96GB', vram: 96, bw: 1600, cc: 12.0, tf: 500, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, note: 'Blackwell 工作站 · 96GB GDDR7' },
   { id: 'mi250x',      name: 'AMD MI250X 64GB',       vram: 64,  bw: 1638, cc: null, tf: 383, nvlink: true,  fp8: false, vendor: 'amd',    xgmi: true, pcieGen: 4, note: 'CDNA2 · ROCm · xGMI' },
-  { id: 'm2ultra',     name: 'Apple M2 Ultra 192GB',  vram: 192, bw: 819,  cc: null, tf: 27,  nvlink: false, fp8: false, vendor: 'apple', note: '统一内存 · 仅llama.cpp' },
-  { id: 'dspark',      name: 'NVIDIA DGX Spark 128GB', vram: 128, bw: 273, cc: 12.0, tf: 125, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, note: 'GB10 统一内存 · 桌面级' },
+  { id: 'm2ultra',     name: 'Apple M2 Ultra 192GB',  vram: 192, bw: 819,  cc: null, tf: 27,  nvlink: false, fp8: false, vendor: 'apple', hidden: true, note: '统一内存 · 仅llama.cpp' },
+  { id: 'dspark',      name: 'NVIDIA DGX Spark 128GB', vram: 128, bw: 273, cc: 12.0, tf: 125, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, hidden: true, note: 'GB10 统一内存 · 桌面级' },
 ];
 
 /* 互联方式: bw = 卡间有效带宽 GB/s(单向),lat = 每次 allreduce 近似延迟 µs
@@ -61,6 +62,7 @@ const INTERCONNECTS = [
   { id: 'pcie5',   name: 'PCIe 5.0 x16',        bw: 64,   lat: 15, type: 'pcie' },
   { id: 'ib400',   name: 'InfiniBand NDR 400G', bw: 50,   lat: 10, type: 'net' },
   { id: 'eth100',  name: 'Ethernet 100GbE',     bw: 12.5, lat: 30, type: 'net' },
+  { id: 'eth1g',   name: '千兆以太网 (1GbE)',    bw: 0.125, lat: 300, type: 'net' },
   { id: 'unified', name: '统一内存(片上)',       bw: 0,    lat: 0,  type: 'unified' },
 ];
 
@@ -78,6 +80,14 @@ const RAMS = [
   { id: 'ddr5-64', name: 'DDR5-4800 64GB',  gb: 64, bw: 38.4, note: '单条 · RDIMM' },
 ];
 
+/* FPGA 加速卡/开发板: vram(GB,板载DDR4可用容量) bw(GB/s,DDR4实测带宽) tf(等效TFLOPS,INT8,含当前串行核利用率)
+   vendor 'fpga':常规推理框架不直接支持(自定义 HLS 运行时),llama.cpp/Transformers 仅作带宽受限代理估算;
+   与 GPU 混插会被混合厂商检查拦截(FPGA+GPU 异构算子卸载暂不建模) */
+const FPGAS = [
+  { id: 'axu9egb', name: 'ALINX AXU9EGB (ZU9EG)', vram: 4, bw: 12.8, tf: 0.005, cc: null, nvlink: false, fp8: false, vendor: 'fpga', pcieGen: 3,
+    note: 'PS DDR4 4GB/64bit(实测DDR4-1600≈12.8GB/s)+ PL DDR4 2GB · 2520 DSP@200MHz · Module16 LM Head 已上板验收(串行核≈5.5s/token) · 千兆网接主机 · 源:LLM_FPGA 工程' },
+];
+
 /* 整机:预配置一体机,添加到画板时自动展开为组成部件(GPU/CPU/内存)。
    两台成员配置均已 SSH 实测核实(nvidia-smi / lscpu / free,2026-09-05) */
 const APPLIANCES = [
@@ -90,6 +100,16 @@ const APPLIANCES = [
     id: 'siton-gpu', name: '思腾合力 GPU 服务器 · 3×V100S-PCIE 96GB', vendor: 'nvidia',
     spec: { gpus: { 'v100s-pcie': 3 }, cpus: { 'xeon-gold-6326': 1 }, rams: { 'ddr5-64': 4 } },
     note: '实测:3×V100S-PCIE-32GB · 双路Gold 6326 · 256GB · 无NVLink桥接,走PCIe(ssh 124.16.71.7:7626)',
+  },
+  {
+    id: 'mac-studio-m2u', name: 'Apple Mac Studio · M2 Ultra 192GB', vendor: 'apple',
+    spec: { gpus: { 'm2ultra': 1 } },
+    note: '统一内存整机,GPU/CPU/内存一体(SoC),无独立显卡可拆 · 仅 llama.cpp/Transformers',
+  },
+  {
+    id: 'dgx-spark', name: 'NVIDIA DGX Spark · GB10 128GB', vendor: 'nvidia',
+    spec: { gpus: { 'dspark': 1 } },
+    note: 'GB10 统一内存桌面整机,GPU/CPU/内存一体,无独立显卡可拆 · 需新软件栈',
   },
 ];
 
@@ -133,7 +153,7 @@ const FRAMEWORKS = [
       { id: 'q8',  name: 'Q8_0',  bpw: 8.5 },
       { id: 'q4',  name: 'Q4_0',  bpw: 4.5 },
     ],
-    fixedOH: 0.8, fracOH: 0.02, decodeEff: 0.7, mfu: 0.35,
+    fixedOH: 0.8, fracOH: 0.02, decodeEff: 0.7, mfu: 0.35, fpga: true,
     desc: '单机/边缘部署神器,显存不够可把部分层放CPU,全平台支持。',
   },
   {
@@ -175,7 +195,7 @@ const FRAMEWORKS = [
       { id: 'int4', name: 'INT4 NF4 (bitsandbytes)', bpw: 4.5 },
     ],
     kvQuants: [ { id: 'fp16', name: 'FP16', bpw: 16 } ],
-    fixedOH: 1.0, fracOH: 0.02, decodeEff: 0.5, mfu: 0.22,
+    fixedOH: 1.0, fracOH: 0.02, decodeEff: 0.5, mfu: 0.22, fpga: true,
     desc: ' transformers 原生 pipeline,适合验证与实验,不适合高吞吐服务。',
   },
 ];
