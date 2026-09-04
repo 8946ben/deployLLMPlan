@@ -87,7 +87,7 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
   padding: 7px 12px; cursor: pointer; font: inherit; white-space: nowrap;
 }
 .btn:hover { background: #4f8cff33; }
-.btn-sm { font-size: 12px; padding: 3px 10px; margin-left: auto; }
+.btn-sm { font-size: 12px; padding: 3px 10px; margin-left: 8px; }
 
 .summary { margin-top: 10px; background: var(--bg2); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
 .ms-row { display: flex; justify-content: space-between; padding: 2px 0; }
@@ -137,18 +137,21 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
 }
 .board-totals b { color: var(--text); }
 .board {
-  min-height: 260px; border: 2px dashed #33405a; border-radius: 10px; padding: 10px;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(215px, 1fr)); gap: 8px;
+  position: relative; display: block; min-height: 240px;
+  border: 2px dashed #33405a; border-radius: 10px; padding: 4px; overflow: auto;
   background: repeating-linear-gradient(0deg, transparent 0 23px, #ffffff05 23px 24px),
               repeating-linear-gradient(90deg, transparent 0 23px, #ffffff05 23px 24px);
   transition: border-color .15s, background-color .15s;
 }
 .board.dragover { border-color: var(--accent); background-color: #4f8cff0d; }
 .board-empty {
-  grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
   color: var(--muted); gap: 6px; min-height: 220px; text-align: center;
 }
-.board-item { background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px; padding: 8px 10px; }
+.board-item {
+  position: absolute; width: 150px; z-index: 1;
+  background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px; padding: 8px 10px;
+}
 .board-item.type-gpu { border-left: 3px solid #76b900; }
 .board-item.type-cpu { border-left: 3px solid #4f8cff; }
 .board-item.type-ram { border-left: 3px solid #e0a458; }
@@ -239,20 +242,16 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
 .layer-line.exp:hover, .bottleneck-line.exp:hover { background: #1a2333; }
 .layer-line.open, .bottleneck-line.open { border-left: 3px solid var(--accent); }
 
-/* ---------- 集群拓扑 ---------- */
-.topo-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; }
-.topo-head > span { font-size: 12px; color: var(--muted); font-weight: 600; }
-.ic-sel { max-width: 320px; font-size: 12px; padding: 4px 8px; }
-.topo { margin-top: 8px; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 6px 2px; }
-.topo svg { width: 100%; height: auto; display: block; }
-.topo-empty { color: var(--muted); text-align: center; padding: 22px 0; font-size: 12px; }
-.topo-node rect { fill: #1a2333; stroke: #2e3a50; stroke-width: 1.2; }
-.topo-node.g rect { stroke: #76b90077; }
-.topo-node.c rect { stroke: #4f8cff77; }
-.topo-node.r rect { stroke: #e0a45877; }
-.topo-node.sw rect { stroke: #b083f077; fill: #1c1828; }
-.topo-node .t { fill: #dbe4f0; font-size: 10.5px; text-anchor: middle; font-weight: 600; }
-.topo-node .s { fill: #8a97ab; font-size: 9px; text-anchor: middle; }
+/* ---------- 集群拓扑(融入画板) ---------- */
+.ic-sel { margin-left: auto; max-width: 300px; min-width: 130px; font-size: 12px; padding: 4px 8px; }
+.topo-svg { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
+.topo-swbar {
+  position: absolute; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: #1c1828; border: 1px solid #b083f077; border-radius: 8px;
+  color: #c9a8f5; font-size: 11px; font-weight: 600;
+}
+.topo-ghost { border-style: dashed; opacity: .75; }
 .topo-link { stroke-width: 2; fill: none; }
 .topo-link.fab { stroke: #76b900; stroke-opacity: .7; }
 .topo-link.pcie { stroke: #e0a458; stroke-opacity: .5; stroke-dasharray: 5 3; }

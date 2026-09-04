@@ -147,28 +147,137 @@ function addItem(type, refId) {
   renderBoard(); renderReport(); saveState();
 }
 
-function renderBoard() {
-  const board = $('#board');
-  const groups = [];
+const shortN = (x) => x.name.replace(/^NVIDIA |^AMD |^Apple |^Intel /, '');
+function groupBoardBy(type) {
+  const out = [];
   const idx = {};
-  for (const it of state.board) {
-    const key = it.type + ':' + it.refId;
-    if (idx[key] === undefined) { idx[key] = groups.length; groups.push({ type: it.type, refId: it.refId, count: 0 }); }
-    groups[idx[key]].count++;
+  for (const b of state.board.filter(x => x.type === type)) {
+    if (idx[b.refId] === undefined) { idx[b.refId] = out.length; out.push({ refId: b.refId, items: [] }); }
+    out[idx[b.refId]].items.push(b);
   }
-  const cat = { gpu: GPUS, cpu: CPUS, ram: RAMS };
-  board.innerHTML = groups.length ? groups.map(gr => {
-    const item = byId(cat[gr.type], gr.refId); if (!item) return '';
-    const spec = gr.type === 'gpu' ? item.vram + 'GB · ' + item.bw + 'GB/s' + (item.vendor === 'nvidia' ? ' · CC' + item.cc : '')
-      : gr.type === 'cpu' ? item.cores + '核 · ' + item.channels + '通道' : item.gb + 'GB · ' + item.bw + 'GB/s';
-    return '<div class="board-item type-' + gr.type + '" data-key="' + gr.type + ':' + gr.refId + '">' +
-      '<div class="bi-head"><span class="bi-name">' + (gr.type === 'gpu' ? '🖧' : gr.type === 'cpu' ? '🧠' : '🧩') + ' ' + esc(item.name) + '</span>' +
-      '<span class="bi-count">×' + gr.count + '</span></div>' +
+  return out;
+}
+
+function renderBoard() {
+  const wrap = $('#board');
+  const gpus = boardItems('gpu'), cpus = boardItems('cpu'), rams = boardItems('ram');
+  const ic = resolveInterconnect(gpus, state.icId);
+
+  // 汇总条
+  const vram = gpus.reduce((s, g) => s + g.vram, 0);
+  const bwSum = gpus.reduce((s, g) => s + g.bw, 0);
+  const ramGB = rams.reduce((s, r) => s + r.gb, 0);
+  const icText = ic ? (ic.bw ? ic.name.split(' (')[0] + ' · <b>' + ic.bw + '</b> GB/s' : ic.name) : '—';
+  $('#boardTotals').innerHTML =
+    '<span>GPU <b>' + gpus.length + '</b> 块</span><span>显存 <b>' + vram + '</b> GB</span>' +
+    '<span>带宽合计 <b>' + bwSum + '</b> GB/s</span>' +
+    '<span>互联 <b>' + (gpus.length > 1 ? icText : '单卡') + '</b></span>' +
+    '<span>CPU <b>' + cpus.length + '</b> 个平台</span><span>内存 <b>' + ramGB + '</b> GB</span>';
+  const autoOpt = $('#icSel option[value="auto"]');
+  if (autoOpt) autoOpt.textContent = ic ? '自动 — ' + ic.name.split(' (')[0] + (ic.bw ? ' (' + ic.bw + ' GB/s)' : '') : '自动(按GPU推断)';
+
+  if (!state.board.length) {
+    wrap.style.height = '';
+    wrap.innerHTML = '<div class="board-empty">画板为空 — 点击左侧硬件卡的 <b>+</b>,或直接把硬件拖到这里<br><small>试试右上角「快速场景」</small></div>';
+    return;
+  }
+
+  /* ---- 布局:每块 GPU 一张独立卡,最多 4 列;其下依次是 NVLink 交换背板 / 主机(CPU) / 内存 ---- */
+  const NW = 150, NH = 100, GX = 26, GY = 48, PAD = 12;
+  const gpuList = state.board.filter(b => b.type === 'gpu');
+  const n = gpuList.length;
+  const cols = n <= 4 ? Math.max(n, 1) : 4;
+  const rows = Math.ceil(n / cols);
+  const pos = {};
+  gpuList.forEach((b, i) => { pos[b.uid] = { x: PAD + (i % cols) * (NW + GX), y: PAD + Math.floor(i / cols) * (NH + GY) }; });
+  const gpuCs = gpuList.map(b => ({ x: pos[b.uid].x + NW / 2, y: pos[b.uid].y + NH / 2 }));
+  const gridW = cols * NW + (cols - 1) * GX + PAD * 2;
+  const gridH = rows > 0 ? rows * NH + (rows - 1) * GY + PAD : 0;
+  const cx = Math.max(gridW / 2, 200);
+  const canvasW = Math.max(gridW, 460);
+
+  // 互联形态:A100/H100 多卡走 NVSwitch;xgmi≤4 卡全互联;V100(NVLink2)画卡间网格;PCIe 走主机
+  const useSwitch = ic && ic.type === 'fabric' && n >= 3 && ic.id !== 'nvlink2';
+  const useMesh = ic && ic.type === 'fabric' && n >= 2 && !useSwitch;
+
+  let y = n ? gridH + 34 : PAD;
+  let sw = null;
+  if (useSwitch) { sw = { x: PAD, y: y, w: Math.max(gridW - PAD * 2, 320), h: 32 }; y = sw.y + sw.h + 42; }
+  const hostY = y; y = hostY + NH + 44;
+  const cpuGroups = groupBoardBy('cpu');
+  const ramGroups = groupBoardBy('ram');
+  const HW = 150, HG = 18;
+  const rowX = (k, w) => cx - (k * (w + HG) - HG) / 2;
+  const cpuPos = cpuGroups.map((g, i) => ({ x: rowX(cpuGroups.length, HW) + i * (HW + HG), y: hostY }));
+  const ramY = y;
+  const ramPos = ramGroups.map((g, i) => ({ x: rowX(ramGroups.length, HW) + i * (HW + HG), y: ramY }));
+  const totalH = ramGroups.length ? ramY + NH + PAD : ramY + PAD;
+  const hostC = cpuGroups.length
+    ? { x: cpuPos.reduce((s, p) => s + p.x + HW / 2, 0) / cpuGroups.length, y: hostY + NH / 2 }
+    : { x: cx, y: hostY + NH / 2 };
+
+  /* ---- 连线(SVG 垫在卡片下,从卡中心连到对端中心,端点藏在卡片后) ---- */
+  const L = [], T = [];
+  const line = (a, b, cls) => L.push('<line class="topo-link ' + cls + '" x1="' + a.x.toFixed(1) + '" y1="' + a.y.toFixed(1) + '" x2="' + b.x.toFixed(1) + '" y2="' + b.y.toFixed(1) + '"></line>');
+  const text = (x, ty, t, cls) => T.push('<text class="topo-label ' + cls + '" x="' + Math.max(60, Math.min(x, canvasW - 60)).toFixed(0) + '" y="' + ty + '" text-anchor="middle">' + esc(t) + '</text>');
+  const icLabel = ic ? (ic.bw ? ic.name.split(' (')[0] + ' · ' + ic.bw + ' GB/s' : ic.name) : '';
+
+  if (useSwitch && sw) {
+    const swC = { x: sw.x + sw.w / 2, y: sw.y + sw.h / 2 };
+    for (const c of gpuCs) line(c, swC, 'fab');
+    text(swC.x, sw.y - 7, icLabel + ' · ' + n + ' 卡全互联', 'fab');
+  } else if (useMesh) {
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const sameRow = Math.floor(i / cols) === Math.floor(j / cols) && j === i + 1;
+      const sameCol = j === i + cols;
+      if (n <= 4 || sameRow || sameCol) line(gpuCs[i], gpuCs[j], 'fab');
+    }
+    if (n >= 2) text((gpuCs[0].x + gpuCs[1].x) / 2, Math.min(gpuCs[0].y, gpuCs[1].y) - 9, icLabel + (n <= 4 ? ' · 全互联' : ' · 网格互联'), 'fab');
+  }
+  if (n >= 1) {
+    const pgen = Math.min(...gpus.map(g => g.pcieGen || 3));
+    const pTxt = (ic && (ic.type === 'pcie' || ic.type === 'net')) ? icLabel + (ic.type === 'net' ? ' (跨节点)' : '') : 'PCIe ' + pgen + '.0 x16 · ' + (pgen >= 5 ? 64 : pgen >= 4 ? 32 : 16) + ' GB/s';
+    if (useSwitch && sw) line({ x: cx, y: sw.y + sw.h }, { x: hostC.x, y: hostY }, 'pcie');
+    else for (const c of gpuCs) line(c, hostC, 'pcie');
+    text(cx, hostY - 9, pTxt, 'pcie');
+  }
+  if (ic && ic.type === 'unified' && n) {
+    T.push('<text class="topo-label ram" x="' + cx.toFixed(0) + '" y="' + (hostY - 26) + '" text-anchor="middle">统一内存架构:权重与 KV 共享 ' + gpus[0].bw + ' GB/s 带宽</text>');
+  }
+  const chan = cpus.reduce((s, c) => s + c.channels, 0);
+  for (let i = 0; i < ramGroups.length; i++) {
+    line(hostC, { x: ramPos[i].x + HW / 2, y: ramY + NH / 2 }, 'ram');
+    if (i === 0) {
+      const rbw = Math.min(rams.length * 38.4, (chan || rams.length) * 38.4).toFixed(0);
+      text(ramPos[i].x + HW / 2, ramY - 9, 'DDR5 ×' + rams.length + ' 条 · ~' + rbw + ' GB/s · 共 ' + ramGB + 'GB', 'ram');
+    }
+  }
+
+  /* ---- 组装:SVG 垫层 + 交换背板 + 卡片 ---- */
+  let html = '<svg class="topo-svg" width="' + canvasW.toFixed(0) + '" height="' + totalH.toFixed(0) + '" viewBox="0 0 ' + canvasW.toFixed(0) + ' ' + totalH.toFixed(0) + '">' + L.join('') + T.join('') + '</svg>';
+  if (sw) html += '<div class="topo-swbar" style="left:' + sw.x + 'px;top:' + sw.y + 'px;width:' + sw.w + 'px;height:' + sw.h + 'px">' +
+    (ic.id === 'xgmi' ? 'IF 总线 (xGMI)' : 'NVSwitch / NVLink 交换背板') + ' · ' + esc(icLabel) + '</div>';
+  const card = (b, x, yy, cnt) => {
+    const cat = { gpu: GPUS, cpu: CPUS, ram: RAMS }[b.type];
+    const it = byId(cat, b.refId);
+    const spec = b.type === 'gpu' ? it.vram + 'GB · ' + it.bw + 'GB/s' + (it.vendor === 'nvidia' ? ' · CC' + it.cc : '')
+      : b.type === 'cpu' ? it.cores + '核 · ' + it.channels + '通道' : it.gb + 'GB · ' + it.bw + 'GB/s';
+    return '<div class="board-item type-' + b.type + '" style="left:' + x.toFixed(0) + 'px;top:' + yy.toFixed(0) + 'px" data-key="' + b.type + ':' + b.refId + '">' +
+      '<div class="bi-head"><span class="bi-name">' + (b.type === 'gpu' ? '🖧' : b.type === 'cpu' ? '🧠' : '🧩') + ' ' + esc(shortN(it)) + '</span>' + (cnt > 1 ? '<span class="bi-count">×' + cnt + '</span>' : '') + '</div>' +
       '<div class="bi-spec">' + spec + '</div>' +
       '<div class="bi-ops"><button data-op="inc">+1</button><button data-op="dec">−1</button><button data-op="del" class="danger">移除</button></div></div>';
-  }).join('') : '<div class="board-empty">画板为空 — 点击左侧硬件卡的 <b>+</b>,或直接把硬件拖到这里<br><small>试试右上角「快速场景」</small></div>';
+  };
+  gpuList.forEach(b => { html += card(b, pos[b.uid].x, pos[b.uid].y, 1); });
+  cpuGroups.forEach((g, i) => { html += card(g.items[0], cpuPos[i].x, hostY, g.items.length); });
+  ramGroups.forEach((g, i) => { html += card(g.items[0], ramPos[i].x, ramY, g.items.length); });
+  if (!cpuGroups.length && n >= 1) {
+    html += '<div class="board-item type-cpu topo-ghost" style="left:' + (hostC.x - HW / 2).toFixed(0) + 'px;top:' + hostY + 'px">' +
+      '<div class="bi-head"><span class="bi-name">🖥 主机(未放CPU)</span></div><div class="bi-spec">建议加 CPU 平台 + 内存</div></div>';
+  }
+  wrap.innerHTML = html;
+  wrap.style.height = totalH.toFixed(0) + 'px';
 
-  $$('#board .board-item').forEach(el => {
+  $$('#board .board-item[data-key]').forEach(el => {
     const [type, refId] = el.dataset.key.split(':');
     el.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
       const op = btn.dataset.op;
@@ -178,109 +287,6 @@ function renderBoard() {
       renderBoard(); renderReport(); saveState();
     }));
   });
-
-  // 汇总条
-  const gpus = boardItems('gpu'), cpus = boardItems('cpu'), rams = boardItems('ram');
-  const vram = gpus.reduce((s, g) => s + g.vram, 0);
-  const bwSum = gpus.reduce((s, g) => s + g.bw, 0);
-  const ramGB = rams.reduce((s, r) => s + r.gb, 0);
-  const ic = resolveInterconnect(gpus, state.icId);
-  const icText = ic ? (ic.bw ? ic.name.split(' (')[0] + ' · <b>' + ic.bw + '</b> GB/s' : ic.name) : '—';
-  $('#boardTotals').innerHTML =
-    '<span>GPU <b>' + gpus.length + '</b> 块</span><span>显存 <b>' + vram + '</b> GB</span>' +
-    '<span>带宽合计 <b>' + bwSum + '</b> GB/s</span>' +
-    '<span>互联 <b>' + (gpus.length > 1 ? icText : '单卡') + '</b></span>' +
-    '<span>CPU <b>' + cpus.length + '</b> 个平台</span><span>内存 <b>' + ramGB + '</b> GB</span>';
-  // 自动模式的互联选项显示当前推断结果
-  const autoOpt = $('#icSel option[value="auto"]');
-  if (autoOpt) autoOpt.textContent = ic ? '自动 — ' + ic.name.split(' (')[0] + (ic.bw ? ' (' + ic.bw + ' GB/s)' : '') : '自动(按GPU推断)';
-  renderTopology();
-}
-
-/* ---------------- 集群拓扑图 ---------------- */
-function renderTopology() {
-  const el = $('#topo');
-  const gpus = boardItems('gpu'), cpus = boardItems('cpu'), rams = boardItems('ram');
-  const ic = resolveInterconnect(gpus, state.icId);
-  if (!gpus.length && !cpus.length && !rams.length) {
-    el.innerHTML = '<div class="topo-empty">放置硬件后,这里显示集群拓扑与每条链路的速率</div>';
-    return;
-  }
-  const W = 720, NW = 116, NH = 50, GAP = 14, cx = W / 2;
-  const shortName = (x) => x.name.replace(/^NVIDIA |^AMD |^Apple /, '');
-  // 同型号 GPU 合并为一个节点
-  const groups = [];
-  for (const g of gpus) {
-    const last = groups[groups.length - 1];
-    if (last && last.item.id === g.id) last.n++; else groups.push({ item: g, n: 1 });
-  }
-  const n = groups.length;
-  const nCards = gpus.length;
-  const startX = Math.max(8, (W - (n * NW + Math.max(n - 1, 0) * GAP)) / 2);
-  const fabMulti = ic && ic.type === 'fabric' && nCards >= 3;
-  const gpuY = fabMulti ? 96 : (ic && ic.type === 'fabric' && nCards === 2 ? 64 : 44);
-  const node = (x, y, w, title, sub, cls) =>
-    '<g class="topo-node ' + cls + '" transform="translate(' + x.toFixed(1) + ',' + y + ')">' +
-    '<rect width="' + w + '" height="' + NH + '" rx="10"></rect>' +
-    '<text class="t" x="' + w / 2 + '" y="21">' + esc(title) + '</text>' +
-    '<text class="s" x="' + w / 2 + '" y="38">' + esc(sub) + '</text></g>';
-  const line = (x1, y1, x2, y2, cls) =>
-    '<line class="topo-link ' + cls + '" x1="' + x1.toFixed(1) + '" y1="' + y1 + '" x2="' + x2.toFixed(1) + '" y2="' + y2 + '"></line>';
-  const label = (x, y, txt, cls) =>
-    '<text class="topo-label ' + cls + '" x="' + x.toFixed(1) + '" y="' + y + '" text-anchor="middle">' + esc(txt) + '</text>';
-  const icLabel = ic ? (ic.bw ? ic.name.split(' (')[0] + ' · ' + ic.bw + ' GB/s' : ic.name) : '';
-  let svg = '';
-  // GPU 互联层:3卡以上 fabric 走交换芯片星型;2卡异型号直连;2卡同型号画卡间回环;PCIe/网络走 CPU 星型
-  if (ic && ic.type === 'fabric') {
-    if (fabMulti) {
-      const swW = 210;
-      for (let i = 0; i < n; i++) svg += line(cx, 68, startX + i * (NW + GAP) + NW / 2, gpuY, 'fab');
-      svg += node(cx - swW / 2, 18, swW, ic.id === 'xgmi' ? 'IF 总线 (xGMI)' : 'NVSwitch / NVLink 交换',
-        icLabel + (nCards > n ? ' · ' + nCards + ' 卡全互联' : ''), 'sw');
-    } else if (nCards === 2 && n === 2) {
-      svg += line(startX + NW, gpuY + NH / 2, startX + NW + GAP, gpuY + NH / 2, 'fab');
-      svg += label(startX + NW + GAP / 2, gpuY - 8, icLabel, 'fab');
-    } else if (nCards === 2 && n === 1) {
-      const x0 = startX, x1 = startX + NW;
-      svg += line(x0 + 26, gpuY, x0 + 26, gpuY - 22, 'fab') + line(x0 + 26, gpuY - 22, x1 - 26, gpuY - 22, 'fab') + line(x1 - 26, gpuY - 22, x1 - 26, gpuY, 'fab');
-      svg += label(cx, gpuY - 30, icLabel + '(卡间直连)', 'fab');
-    }
-  }
-  for (let i = 0; i < n; i++) {
-    const gr = groups[i];
-    svg += node(startX + i * (NW + GAP), gpuY, NW, shortName(gr.item), (gr.n > 1 ? '×' + gr.n + ' · ' : '') + gr.item.vram + 'GB', 'g');
-  }
-  if (ic && ic.type === 'unified' && n) {
-    svg += label(cx, gpuY + NH + 22, '统一内存架构:权重与 KV 共享 ' + gpus[0].bw + ' GB/s 带宽(无独立显存/内存之分)', 'ram');
-  }
-  // CPU / PCIe 层
-  let H = gpuY + NH + 12;
-  if (n >= 1 || cpus.length) {
-    const cpuY = gpuY + NH + 54;
-    if (n >= 1 && ic && (ic.type === 'pcie' || ic.type === 'net')) {
-      for (let i = 0; i < n; i++) svg += line(startX + i * (NW + GAP) + NW / 2, gpuY + NH, cx, cpuY, 'pcie');
-      svg += label(cx + 130, (gpuY + NH + cpuY) / 2 + 12, icLabel, 'pcie');
-    } else if (n >= 1) {
-      const pgen = Math.min(...gpus.map(g => g.pcieGen || 3));
-      for (let i = 0; i < n; i++) svg += line(startX + i * (NW + GAP) + NW / 2, gpuY + NH, cx, cpuY, 'pcie');
-      svg += label(cx + 130, (gpuY + NH + cpuY) / 2 + 12, 'PCIe ' + pgen + '.0 x16 · ' + (pgen >= 5 ? 64 : pgen >= 4 ? 32 : 16) + ' GB/s(接主机)', 'pcie');
-    }
-    const chan = cpus.reduce((s, c) => s + c.channels, 0);
-    svg += node(cx - 75, cpuY, 150, cpus.length ? shortName(cpus[0]) + (cpus.length > 1 ? ' ×' + cpus.length : '') : '主机(未放CPU)',
-      cpus.length ? cpus[0].cores + '核 · ' + chan + '通道' : '建议加 CPU 平台 + 内存', 'c');
-    H = cpuY + NH + 12;
-    // 内存层
-    if (rams.length && cpus.length) {
-      const ramY = cpuY + NH + 44;
-      const ramGB = rams.reduce((s, r) => s + r.gb, 0);
-      const rbw = Math.min(rams.length * 38.4, chan * 38.4).toFixed(0);
-      svg += line(cx, cpuY + NH, cx, ramY, 'ram');
-      svg += label(cx, ramY - 8, 'DDR5 ×' + rams.length + ' 条 · ' + Math.min(rams.length, chan) + ' 通道 · ~' + rbw + ' GB/s', 'ram');
-      svg += node(cx - 75, ramY, 150, '内存 ' + ramGB + ' GB', rams.length + ' × DDR5-4800', 'r');
-      H = ramY + NH + 10;
-    }
-  }
-  el.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + Math.max(H, 120).toFixed(0) + '" preserveAspectRatio="xMidYMin meet">' + svg + '</svg>';
 }
 
 /* ---------------- 分析报告 ---------------- */
