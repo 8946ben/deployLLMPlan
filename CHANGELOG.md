@@ -4,6 +4,8 @@
 
 ## [未发布]
 
+## [0.3.0] - 2026-09-05(2644c1d)
+
 ### 新增
 - **FPGA 硬件类**:新增 Alinx AXU9EGB (ZU9EG) 开发板,规格取自 LLM_FPGA 实测工程(PS DDR4 4GB/64bit,实测 DDR4-1600 ≈12.8GB/s,2520 DSP,Module16 LM Head 已上板验收);FPGA 走自定义 HLS 运行时估算——选 vLLM/SGLang/TRT-LLM 会被拦截,llama.cpp/Transformers 作带宽受限代理并提示为上界;画板上经千兆以太网(1GbE)接入主机
 - **整机类硬件**:硬件库新增「整机」分类,添加到画板时自动展开为组成部件(GPU/CPU/内存),接入既有分析与拓扑逻辑;首批成员 **NVIDIA DGX-1**(8×V100-SXM2-32GB · 双路E5-2698 v4 · 512GB · NVLink2 全互联)与**思腾合力 GPU 服务器**(3×V100S-PCIE-32GB · 双路Gold 6326 · 256GB · 无NVLink桥接走 PCIe),两台配置均已 SSH 实测核实(nvidia-smi/lscpu/free)
