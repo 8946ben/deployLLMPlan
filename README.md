@@ -32,7 +32,7 @@
   - 张量并行(TP):各卡并行读分片,取最慢卡;TP 通信开销按互联带宽单独建模:`allreduce字节(2×层×隐藏维×2B×2(N-1)/N) ÷ 卡间带宽 + 每层2次×链路延迟(NVLink ~5µs / PCIe ~20µs)` —— NVLink 900GB/s 时几乎可忽略,PCIe 4.0 x16(32GB/s)时可达数 ms/token
   - 层切分(llama.cpp 多卡/卸载):各卡串行累加 → 多卡主要扩容不明显提速,卡间仅传激活向量,互联要求低
   - 框架效率系数:vLLM 0.75 / TRT-LLM 0.85 / llama.cpp 0.70 / Transformers 0.50;MoE batch=1 额外 ×0.55(小专家 GEMM 利用率低),多卡 MoE 再 ×0.75(EP 路由/all-to-all)
-- **预填充速度**(算力受限):`FLOPs/token ÷ (峰值TFLOPS × MFU)`,MFU 取 0.35~0.55
+- **预填充速度**(算力受限):`FLOPs/token ÷ (峰值TFLOPS × MFU)`,MFU 取 0.22~0.55;张量并行算力累加,层切分(llama.cpp 多卡)逐层串行、受最慢单卡限制
 - **CPU 卸载**:放不下的层进内存,解码时间 = GPU 部分耗时 + CPU 部分按内存有效带宽(内存通道数 × 38.4GB/s,受插条数限制)的耗时
 
 ## 兼容性检查规则
@@ -47,6 +47,7 @@
 - **2026 新架构 MoE**(DeepSeek-V4-Flash / Qwen3.8-Flash-Next / GLM-5.3-Flash)按官方 config.json 录入,但 MLA 潜空间 KV、DSA 稀疏索引、KDA 线性层用覆盖字段近似:估算总参数分别 ≈284B / 175B(含 51B n-gram 表)/ 334B,激活 ≈13.8B / 5.6B / 16.9B;KV 每 token ≈48KB / 24KB / 11KB(FP16)。MLA 的 KV 为潜空间近似值,实际随缓存实现不同可能更低
 - **MoE 解码效率修正**:batch=1 下小专家 GEMM 带宽利用率低 + 路由开销(×0.55),TP 多卡逐层 allreduce 延迟(再 ×0.75);即便如此,大 MoE 的速度估算仍偏上限,建议按“上界”理解
 - 速度是数量级正确的工程估算,不含 kernel 调优、CUDA Graph、调度开销等实现细节;实测通常在 ±30% 内
+- **实测校准锚点**(2026-09-05,DGX-1 · 单卡 V100-32GB · llama.cpp Q5_K_M · Qwen3.8-27B · 32K ctx):解码 31.3 tok/s、预填充 679 tok/s(1.1K prompt);对应解码带宽利用率 60.5%、预填充 MFU 29.5%。据此校准 llama.cpp 效率系数(decodeEff 0.65 / MFU 0.32)后,估算解码 33.5、预填充 728 tok/s,偏差约 +7%。这是目前唯一真机锚点(基于 V100 一代),Ampere 及之后的卡效率通常更高
 - 未建模:MLA(DeepSeek 系)、Speculative Decoding、prefix cache 命中、网络传输
 
 ## 测试

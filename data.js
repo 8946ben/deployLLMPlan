@@ -153,7 +153,7 @@ const FRAMEWORKS = [
       { id: 'q8',  name: 'Q8_0',  bpw: 8.5 },
       { id: 'q4',  name: 'Q4_0',  bpw: 4.5 },
     ],
-    fixedOH: 0.8, fracOH: 0.02, decodeEff: 0.7, mfu: 0.35, fpga: true,
+    fixedOH: 0.8, fracOH: 0.02, decodeEff: 0.65, mfu: 0.32, fpga: true,
     desc: '单机/边缘部署神器,显存不够可把部分层放CPU,全平台支持。',
   },
   {

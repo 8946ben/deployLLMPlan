@@ -241,7 +241,10 @@ function analyze(cfg) {
     const decodeTpsBest = 1 / decodeTime(bytesPerTok0);
     // prefill 是算力受限:FLOPs/token ≈ 2×激活参数 + 注意力二次项
     const flopsPerTok = 2 * p.active + 4 * model.layers * (model.kvHeads || model.heads) * headDim * ctxAvg;
-    const gpuTf = gpus.reduce((s, g) => s + g.tf, 0) * (gpus.length > 1 ? (ic && ic.type === 'fabric' ? 1 : 0.85) : 1);
+    // 张量并行各卡同时算同一层 → 算力累加;层切分(llama.cpp)逐层串行 → 吞吐受最慢单卡限制
+    const gpuTf = fw.tp === 'pipeline' && gpus.length > 1
+      ? Math.max(...gpus.map(g => g.tf || 0))
+      : gpus.reduce((s, g) => s + g.tf, 0) * (gpus.length > 1 ? (ic && ic.type === 'fabric' ? 1 : 0.85) : 1);
     const gpuFlops = flopsPerTok * (1 - offloadFrac), cpuFlops = flopsPerTok * offloadFrac;
     let tp = 0;
     if (gpuTf > 0 && gpuFlops > 0) tp += gpuFlops / (gpuTf * 1e12 * fw.mfu);
