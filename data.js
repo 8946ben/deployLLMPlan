@@ -68,11 +68,27 @@ const CPUS = [
   { id: 'epyc-9654', name: 'AMD EPYC 9654 (96核)',  cores: 96, channels: 12, note: '12通道 DDR5 · 服务器' },
   { id: 'xeon-8480', name: 'Intel Xeon 8480+ (56核)', cores: 56, channels: 8, note: '8通道 DDR5 · 服务器' },
   { id: 'ryzen',     name: 'Ryzen 9 7950X (16核)',   cores: 16, channels: 2, note: '双通道 DDR5 · 消费级' },
+  { id: 'xeon-e5v4', name: 'Intel Xeon E5-2698 v4 ×2 (40核)', cores: 40, channels: 12, note: 'DGX-1 原装 · 双路 · DDR4' },
 ];
 
 const RAMS = [
   { id: 'ddr5-32', name: 'DDR5-4800 32GB',  gb: 32, bw: 38.4, note: '单条 · 单通道带宽38.4GB/s' },
   { id: 'ddr5-64', name: 'DDR5-4800 64GB',  gb: 64, bw: 38.4, note: '单条 · RDIMM' },
+];
+
+/* 整机:预配置一体机,添加到画板时自动展开为组成部件(GPU/CPU/内存)。
+   spec 为录入配置:DGX-1 按官方规格;思腾合力为占位,以 note 标注待 SSH 核实(局域网管理地址) */
+const APPLIANCES = [
+  {
+    id: 'dgx-1', name: 'NVIDIA DGX-1 · 8×V100 128GB', vendor: 'nvidia',
+    spec: { gpus: { 'v100-16': 8 }, cpus: { 'xeon-e5v4': 1 }, rams: { 'ddr5-64': 8 } },
+    note: '官方规格:8×V100-SXM2 16GB · NVLink2 · 512GB · ssh 124.16.70.19:7626',
+  },
+  {
+    id: 'siton-gpu', name: '思腾合力 GPU 服务器 · 8×V100 256GB', vendor: 'nvidia',
+    spec: { gpus: { 'v100-32': 8 }, cpus: { 'xeon-e5v4': 1 }, rams: { 'ddr5-64': 8 } },
+    note: '占位配置(8×V100-SXM2 32GB),待 SSH 核实 · ssh 124.16.71.7:7626',
+  },
 ];
 
 /* 推理框架: minCC(最低CUDA计算能力) linux(需Linux/WSL2) tp(多卡策略 tensor|pipeline)

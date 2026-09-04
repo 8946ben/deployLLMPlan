@@ -131,9 +131,17 @@ function buildPalette() {
     '<div class="pal-name">🧩 ' + esc(r.name) + '</div>' +
     '<div class="pal-spec">+38.4GB/s/条</div>' +
     '<div class="pal-note">' + esc(r.note) + '</div><button class="add-btn">+</button></div>';
+  const appCard = (a) => {
+    const gp = Object.entries(a.spec.gpus).map(([id, n]) => (n > 1 ? n + '×' : '') + shortN(byId(GPUS, id))).join(' + ');
+    return '<div class="pal-card vendor-' + (a.vendor || 'app') + '" draggable="true" data-type="appliance" data-id="' + a.id + '">' +
+      '<div class="pal-name">🗄 ' + esc(a.name) + '</div>' +
+      '<div class="pal-spec">' + esc(gp) + '</div>' +
+      '<div class="pal-note">' + esc(a.note) + '</div><button class="add-btn" title="整机展开添加到画板">+</button></div>';
+  };
   $('#palGpu').innerHTML = GPUS.map(gpuCard).join('');
   $('#palCpu').innerHTML = CPUS.map(cpuCard).join('');
   $('#palRam').innerHTML = RAMS.map(ramCard).join('');
+  $('#palApp').innerHTML = APPLIANCES.map(appCard).join('');
   $$('.pal-card').forEach(el => {
     el.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', el.dataset.type + ':' + el.dataset.id); e.dataTransfer.effectAllowed = 'copy'; });
     el.addEventListener('click', e => { if (e.target.classList.contains('add-btn')) return; addItem(el.dataset.type, el.dataset.id); });
@@ -142,7 +150,26 @@ function buildPalette() {
   });
 }
 
+/* 整机入板 = 展开为组成部件(GPU/CPU/内存),复用既有分析与拓扑逻辑 */
+function addAppliance(a) {
+  const part = (type, spec) => {
+    for (const [id, cnt] of Object.entries(spec || {})) {
+      const item = byId(type === 'gpu' ? GPUS : type === 'cpu' ? CPUS : RAMS, id);
+      if (!item) continue;
+      for (let i = 0; i < cnt; i++) state.board.push({ uid: uidSeq++, type, refId: id });
+    }
+  };
+  part('gpu', a.spec.gpus); part('cpu', a.spec.cpus); part('ram', a.spec.rams);
+  const g = Object.entries(a.spec.gpus).reduce((s, [, n]) => s + n, 0);
+  toast('已展开整机「' + a.name + '」:' + g + '×GPU + 主机 + 内存');
+}
+
 function addItem(type, refId) {
+  if (type === 'appliance') {
+    const a = byId(APPLIANCES, refId);
+    if (a) { addAppliance(a); renderBoard(); renderReport(); saveState(); }
+    return;
+  }
   state.board.push({ uid: uidSeq++, type, refId });
   renderBoard(); renderReport(); saveState();
 }
@@ -476,7 +503,7 @@ function bindEvents() {
     e.preventDefault(); board.classList.remove('dragover');
     const data = e.dataTransfer.getData('text/plain');
     const [type, id] = data.split(':');
-    if (type === 'gpu' || type === 'cpu' || type === 'ram') addItem(type, id);
+    if (type === 'gpu' || type === 'cpu' || type === 'ram' || type === 'appliance') addItem(type, id);
   });
   $('#clearBoard').addEventListener('click', () => { state.board = []; renderBoard(); renderReport(); saveState(); });
   $('#icSel').innerHTML = INTERCONNECTS.map(i => '<option value="' + i.id + '">' + esc(i.name + (i.bw ? ' · ' + i.bw + ' GB/s' : '')) + '</option>').join('');
