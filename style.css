@@ -129,6 +129,14 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
 .vendor-amd .pal-spec { color: #ed4c5c; }
 .vendor-apple .pal-spec { color: #c9cdd4; }
 .vendor-fpga .pal-spec { color: #22d3ee; }
+.pal-sub {
+  grid-column: 1 / -1; margin-top: 8px; font-size: 11.5px; font-weight: 700; color: var(--text);
+  border-bottom: 1px solid var(--border); padding-bottom: 3px;
+}
+.pal-gen {
+  grid-column: 1 / -1; margin-top: 4px; font-size: 10.5px; color: var(--muted);
+  font-weight: 600; border-left: 2px solid #4f8cff66; padding-left: 6px;
+}
 
 /* ---------- 画板 ---------- */
 .board-panel { position: sticky; top: 76px; }

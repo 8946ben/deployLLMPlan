@@ -115,6 +115,15 @@ function renderQuantSelectors() {
 }
 
 /* ---------------- 硬件库 + 画板 ---------------- */
+/* 硬件库分组陈列:品牌 → 代际(按 GPU_GEN_ORDER 顺序),代际内按 tf→带宽→显存 降序(性能从强到弱) */
+const VENDOR_LABELS = { nvidia: 'NVIDIA', amd: 'AMD', apple: 'Apple', intel: 'Intel', alinx: 'Alinx (Xilinx)' };
+const GPU_GEN_ORDER = {
+  nvidia: [['volta', 'Volta · V系列'], ['turing', 'Turing · T系列'], ['ampere', 'Ampere · A系列'], ['ada', 'Ada · 40系列'], ['hopper', 'Hopper · H系列'], ['blackwell', 'Blackwell · B系列']],
+  amd: [['cdna', 'CDNA · MI系列']],
+  apple: [['m', 'M 系列']],
+};
+const perfSort = (a, b) => (b.tf - a.tf) || (b.bw - a.bw) || (b.vram - a.vram);
+
 function buildPalette() {
   const gpuCard = (g) =>
     '<div class="pal-card vendor-' + g.vendor + '" draggable="true" data-type="gpu" data-id="' + g.id + '">' +
@@ -143,11 +152,46 @@ function buildPalette() {
     '<div class="pal-name">🔧 ' + esc(f.name) + '</div>' +
     '<div class="pal-spec">' + f.vram + 'GB · ' + f.bw + 'GB/s · ' + (f.tf >= 1 ? f.tf.toFixed(0) : (f.tf * 1000).toFixed(0) + 'G') + ' FLOPS等效</div>' +
     '<div class="pal-note">' + esc(f.note) + '</div><button class="add-btn" title="添加到画板">+</button></div>';
-  $('#palGpu').innerHTML = GPUS.filter(g => !g.hidden).map(gpuCard).join('');
-  $('#palCpu').innerHTML = CPUS.map(cpuCard).join('');
+
+  // GPU:厂商 → 代际 → 性能降序
+  const vis = GPUS.filter(g => !g.hidden);
+  let gpuHtml = '';
+  for (const [vendor, gens] of Object.entries(GPU_GEN_ORDER)) {
+    const vlist = vis.filter(g => g.vendor === vendor);
+    if (!vlist.length) continue;
+    gpuHtml += '<div class="pal-sub">' + (VENDOR_LABELS[vendor] || vendor) + '</div>';
+    const known = new Set();
+    for (const [gen, label] of gens) {
+      const cards = vlist.filter(g => g.gen === gen).sort(perfSort);
+      if (!cards.length) continue;
+      known.add(gen);
+      gpuHtml += '<div class="pal-gen">' + label + '</div>' + cards.map(gpuCard).join('');
+    }
+    const other = vlist.filter(g => !known.has(g.gen));
+    if (other.length) gpuHtml += '<div class="pal-gen">其他</div>' + other.map(gpuCard).join('');
+  }
+  $('#palGpu').innerHTML = gpuHtml;
+
+  // CPU:厂商 → 核心数降序
+  let cpuHtml = '';
+  for (const vendor of ['intel', 'amd']) {
+    const list = CPUS.filter(c => c.vendor === vendor).sort((a, b) => b.cores - a.cores);
+    if (!list.length) continue;
+    cpuHtml += '<div class="pal-sub">' + (VENDOR_LABELS[vendor] || vendor) + '</div>' + list.map(cpuCard).join('');
+  }
+  $('#palCpu').innerHTML = cpuHtml;
+
   $('#palRam').innerHTML = RAMS.map(ramCard).join('');
   $('#palFpga').innerHTML = FPGAS.map(fpgaCard).join('');
-  $('#palApp').innerHTML = APPLIANCES.map(appCard).join('');
+
+  // 整机:按平台品牌分组
+  let appHtml = '';
+  for (const vendor of ['nvidia', 'apple']) {
+    const list = APPLIANCES.filter(a => a.vendor === vendor);
+    if (!list.length) continue;
+    appHtml += '<div class="pal-sub">' + (VENDOR_LABELS[vendor] || vendor) + '</div>' + list.map(appCard).join('');
+  }
+  $('#palApp').innerHTML = appHtml;
   $$('.pal-card').forEach(el => {
     el.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', el.dataset.type + ':' + el.dataset.id); e.dataTransfer.effectAllowed = 'copy'; });
     el.addEventListener('click', e => { if (e.target.classList.contains('add-btn')) return; addItem(el.dataset.type, el.dataset.id); });

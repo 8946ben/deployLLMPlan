@@ -12,6 +12,7 @@
 - GPU 目录新增 Tesla V100S-PCIE 32GB(Volta PCIe 版);CPU 平台新增 Intel Xeon E5-2698 v4 ×2 与 Xeon Gold 6326 ×2
 
 ### 变更
+- **硬件库按品牌/代际分组陈列**:GPU 按 NVIDIA/AMD → Volta/Turing/Ampere/Ada/Hopper/Blackwell 各系列分节,代际内按算力→带宽→显存降序(性能从强到弱);CPU 平台按 Intel/AMD 分组按核心数排序;整机按平台品牌分组
 - **估算校准(DGX-1 真机实测)**:llama.cpp decodeEff 0.70→0.65、MFU 0.35→0.32——V100 单卡实测解码带宽利用率 60.5%、预填充 MFU 29.5%;校准后 Qwen3.8-27B Q5_K_M 估算解码 33.5 / 预填充 728 tok/s vs 实测 31.3 / 679,偏差 +15%/+17% 收敛到 +7%
 - **部署画板重构为「画板即集群」**:每块 GPU 独立成节点,卡间按真实拓扑连线并标注速率(A100/H100 多卡经 NVSwitch 星型全互联,V100 混合立方网格,PCIe 卡经主机星型),CPU/内存节点画在下方;原独立拓扑面板移除,互联方式选择器移入画板标题栏
 - GPU 库中的整机成员移入「整机」类:Apple M2 Ultra(Mac Studio)与 DGX Spark(GB10 桌面机)从 GPU 卡列表改为整机成员,GPU 卡列表 21 → 19 款;整机类现有 4 成员
