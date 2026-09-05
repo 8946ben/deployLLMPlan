@@ -23,30 +23,30 @@ const MODELS = [
 
 /* GPU: vram(GB) bw(GB/s,显存带宽) cc(CUDA计算能力,nvidia专有) tf(FP16 Tensor TFLOPS) nvlink fp8(支持FP8张量核心)
    nvGen(NVLink代数,卡间聚合带宽见 INTERCONNECTS) pcieGen(PCIe代数) xgmi(AMD Infinity Fabric)
-   gen(微架构代际,硬件库按厂商→代际分组、代际内按 tf/bw/vram 降序陈列)
+   gen(微架构代际,硬件库按厂商→代际分组、代际内按 tf/bw/vram 降序陈列) tdp(W,典型功耗/整包功耗)
    hidden:true = 实为整机(Mac Studio/DGX Spark),不出现在 GPU 调色板,由整机类引用 */
 const GPUS = [
-  { id: 'v100-16',     name: 'NVIDIA V100-SXM2 16GB', vram: 16,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 2, pcieGen: 3, gen: 'volta',    note: 'Volta · 无BF16/FP8' },
-  { id: 'v100-32',     name: 'NVIDIA V100-SXM2 32GB', vram: 32,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 2, pcieGen: 3, gen: 'volta',    note: 'Volta · 无BF16/FP8' },
-  { id: 'v100s-pcie',  name: 'NVIDIA Tesla V100S-PCIE 32GB', vram: 32, bw: 900, cc: 7.0, tf: 112, nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 3, gen: 'volta', note: 'Volta · 32GB PCIe版' },
-  { id: 't4',          name: 'NVIDIA Tesla T4 16GB',  vram: 16,  bw: 320,  cc: 7.5,  tf: 65,  nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 3, gen: 'turing',   note: '低功耗推理卡' },
-  { id: 'rtx3090',     name: 'NVIDIA RTX 3090 24GB',  vram: 24,  bw: 936,  cc: 8.6,  tf: 71,  nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 4, gen: 'ampere',   note: 'Ampere 消费级' },
-  { id: 'a10',         name: 'NVIDIA A10 24GB',       vram: 24,  bw: 600,  cc: 8.6,  tf: 125, nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 4, gen: 'ampere',   note: 'Ampere 数据中心' },
-  { id: 'a100-40',     name: 'NVIDIA A100-SXM4 40GB', vram: 40,  bw: 1555, cc: 8.0,  tf: 312, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 3, pcieGen: 4, gen: 'ampere', note: 'Ampere · 原生BF16' },
-  { id: 'a100-80',     name: 'NVIDIA A100-SXM4 80GB', vram: 80,  bw: 2039, cc: 8.0,  tf: 312, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 3, pcieGen: 4, gen: 'ampere', note: 'Ampere · 原生BF16' },
-  { id: 'a100-80-pcie',name: 'NVIDIA A100-PCIe 80GB', vram: 80,  bw: 1935, cc: 8.0,  tf: 312, nvlink: false, fp8: false, vendor: 'nvidia', nvGen: 3, pcieGen: 4, gen: 'ampere', note: 'PCIe版 · 卡间无NVLink' },
-  { id: 'rtx4090',     name: 'NVIDIA RTX 4090 24GB',  vram: 24,  bw: 1008, cc: 8.9,  tf: 165, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 4, gen: 'ada',      note: 'Ada · 支持FP8' },
-  { id: 'l40s',        name: 'NVIDIA L40S 48GB',      vram: 48,  bw: 864,  cc: 8.9,  tf: 181, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 4, gen: 'ada',      note: 'Ada · 大显存推理卡' },
-  { id: 'h100',        name: 'NVIDIA H100-SXM5 80GB', vram: 80,  bw: 3350, cc: 9.0,  tf: 990, nvlink: true,  fp8: true,  vendor: 'nvidia', nvGen: 4, pcieGen: 5, gen: 'hopper',   note: 'Hopper · FP8 · NVSwitch' },
-  { id: 'h100-pcie',   name: 'NVIDIA H100-PCIe 80GB', vram: 80,  bw: 2000, cc: 9.0,  tf: 756, nvlink: false, fp8: true,  vendor: 'nvidia', nvGen: 4, pcieGen: 5, gen: 'hopper', note: 'Hopper PCIe版' },
-  { id: 'h200',        name: 'NVIDIA H200 SXM 141GB', vram: 141, bw: 4800, cc: 9.0,  tf: 990, nvlink: true,  fp8: true,  vendor: 'nvidia', nvGen: 4, pcieGen: 5, gen: 'hopper',   note: 'Hopper · 141GB HBM3e' },
-  { id: 'b200',        name: 'NVIDIA B200 SXM 180GB', vram: 180, bw: 8000, cc: 10.0, tf: 2250, nvlink: true,  fp8: true,  vendor: 'nvidia', nvGen: 5, pcieGen: 5, gen: 'blackwell', note: 'Blackwell · FP8/FP4 · NVSwitch' },
-  { id: 'b300',        name: 'NVIDIA B300 (Blackwell Ultra) 288GB', vram: 288, bw: 8000, cc: 10.0, tf: 2250, nvlink: true, fp8: true, vendor: 'nvidia', nvGen: 5, pcieGen: 5, gen: 'blackwell', note: 'Blackwell Ultra · 288GB HBM3e' },
-  { id: 'rtxpro6000',  name: 'NVIDIA RTX PRO 6000 96GB', vram: 96, bw: 1600, cc: 12.0, tf: 500, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, gen: 'blackwell', note: 'Blackwell 工作站 · 96GB GDDR7' },
-  { id: 'rtx5090',     name: 'NVIDIA RTX 5090 32GB',  vram: 32,  bw: 1792, cc: 12.0, tf: 209, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, gen: 'blackwell', note: 'Blackwell 消费级 · 需新软件栈' },
-  { id: 'mi250x',      name: 'AMD MI250X 64GB',       vram: 64,  bw: 1638, cc: null, tf: 383, nvlink: true,  fp8: false, vendor: 'amd',    xgmi: true, pcieGen: 4, gen: 'cdna', note: 'CDNA2 · ROCm · xGMI' },
-  { id: 'm2ultra',     name: 'Apple M2 Ultra 192GB',  vram: 192, bw: 819,  cc: null, tf: 27,  nvlink: false, fp8: false, vendor: 'apple', gen: 'm', hidden: true, note: '统一内存 · 仅llama.cpp' },
-  { id: 'dspark',      name: 'NVIDIA DGX Spark 128GB', vram: 128, bw: 273, cc: 12.0, tf: 125, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, gen: 'blackwell', hidden: true, note: 'GB10 统一内存 · 桌面级' },
+  { id: 'v100-16',     name: 'NVIDIA V100-SXM2 16GB', vram: 16,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 2, pcieGen: 3, gen: 'volta',    tdp: 300, note: 'Volta · 无BF16/FP8' },
+  { id: 'v100-32',     name: 'NVIDIA V100-SXM2 32GB', vram: 32,  bw: 900,  cc: 7.0,  tf: 112, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 2, pcieGen: 3, gen: 'volta',    tdp: 300, note: 'Volta · 无BF16/FP8' },
+  { id: 'v100s-pcie',  name: 'NVIDIA Tesla V100S-PCIE 32GB', vram: 32, bw: 900, cc: 7.0, tf: 112, nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 3, gen: 'volta', tdp: 250, note: 'Volta · 32GB PCIe版' },
+  { id: 't4',          name: 'NVIDIA Tesla T4 16GB',  vram: 16,  bw: 320,  cc: 7.5,  tf: 65,  nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 3, gen: 'turing',   tdp: 70, note: '低功耗推理卡' },
+  { id: 'rtx3090',     name: 'NVIDIA RTX 3090 24GB',  vram: 24,  bw: 936,  cc: 8.6,  tf: 71,  nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 4, gen: 'ampere',   tdp: 350, note: 'Ampere 消费级' },
+  { id: 'a10',         name: 'NVIDIA A10 24GB',       vram: 24,  bw: 600,  cc: 8.6,  tf: 125, nvlink: false, fp8: false, vendor: 'nvidia', pcieGen: 4, gen: 'ampere',   tdp: 150, note: 'Ampere 数据中心' },
+  { id: 'a100-40',     name: 'NVIDIA A100-SXM4 40GB', vram: 40,  bw: 1555, cc: 8.0,  tf: 312, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 3, pcieGen: 4, gen: 'ampere', tdp: 400, note: 'Ampere · 原生BF16' },
+  { id: 'a100-80',     name: 'NVIDIA A100-SXM4 80GB', vram: 80,  bw: 2039, cc: 8.0,  tf: 312, nvlink: true,  fp8: false, vendor: 'nvidia', nvGen: 3, pcieGen: 4, gen: 'ampere', tdp: 400, note: 'Ampere · 原生BF16' },
+  { id: 'a100-80-pcie',name: 'NVIDIA A100-PCIe 80GB', vram: 80,  bw: 1935, cc: 8.0,  tf: 312, nvlink: false, fp8: false, vendor: 'nvidia', nvGen: 3, pcieGen: 4, gen: 'ampere', tdp: 300, note: 'PCIe版 · 卡间无NVLink' },
+  { id: 'rtx4090',     name: 'NVIDIA RTX 4090 24GB',  vram: 24,  bw: 1008, cc: 8.9,  tf: 165, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 4, gen: 'ada',      tdp: 450, note: 'Ada · 支持FP8' },
+  { id: 'l40s',        name: 'NVIDIA L40S 48GB',      vram: 48,  bw: 864,  cc: 8.9,  tf: 181, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 4, gen: 'ada',      tdp: 350, note: 'Ada · 大显存推理卡' },
+  { id: 'h100',        name: 'NVIDIA H100-SXM5 80GB', vram: 80,  bw: 3350, cc: 9.0,  tf: 990, nvlink: true,  fp8: true,  vendor: 'nvidia', nvGen: 4, pcieGen: 5, gen: 'hopper',   tdp: 700, note: 'Hopper · FP8 · NVSwitch' },
+  { id: 'h100-pcie',   name: 'NVIDIA H100-PCIe 80GB', vram: 80,  bw: 2000, cc: 9.0,  tf: 756, nvlink: false, fp8: true,  vendor: 'nvidia', nvGen: 4, pcieGen: 5, gen: 'hopper', tdp: 350, note: 'Hopper PCIe版' },
+  { id: 'h200',        name: 'NVIDIA H200 SXM 141GB', vram: 141, bw: 4800, cc: 9.0,  tf: 990, nvlink: true,  fp8: true,  vendor: 'nvidia', nvGen: 4, pcieGen: 5, gen: 'hopper',   tdp: 700, note: 'Hopper · 141GB HBM3e' },
+  { id: 'b200',        name: 'NVIDIA B200 SXM 180GB', vram: 180, bw: 8000, cc: 10.0, tf: 2250, nvlink: true,  fp8: true,  vendor: 'nvidia', nvGen: 5, pcieGen: 5, gen: 'blackwell', tdp: 1000, note: 'Blackwell · FP8/FP4 · NVSwitch' },
+  { id: 'b300',        name: 'NVIDIA B300 (Blackwell Ultra) 288GB', vram: 288, bw: 8000, cc: 10.0, tf: 2250, nvlink: true, fp8: true, vendor: 'nvidia', nvGen: 5, pcieGen: 5, gen: 'blackwell', tdp: 1400, note: 'Blackwell Ultra · 288GB HBM3e · 液冷' },
+  { id: 'rtxpro6000',  name: 'NVIDIA RTX PRO 6000 96GB', vram: 96, bw: 1600, cc: 12.0, tf: 500, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, gen: 'blackwell', tdp: 600, note: 'Blackwell 工作站 · 96GB GDDR7' },
+  { id: 'rtx5090',     name: 'NVIDIA RTX 5090 32GB',  vram: 32,  bw: 1792, cc: 12.0, tf: 209, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, gen: 'blackwell', tdp: 575, note: 'Blackwell 消费级 · 需新软件栈' },
+  { id: 'mi250x',      name: 'AMD MI250X 64GB',       vram: 64,  bw: 1638, cc: null, tf: 383, nvlink: true,  fp8: false, vendor: 'amd',    xgmi: true, pcieGen: 4, gen: 'cdna', tdp: 560, note: 'CDNA2 · ROCm · xGMI' },
+  { id: 'm2ultra',     name: 'Apple M2 Ultra 192GB',  vram: 192, bw: 819,  cc: null, tf: 27,  nvlink: false, fp8: false, vendor: 'apple', gen: 'm', hidden: true, tdp: 150, note: '统一内存 · 仅llama.cpp' },
+  { id: 'dspark',      name: 'NVIDIA DGX Spark 128GB', vram: 128, bw: 273, cc: 12.0, tf: 125, nvlink: false, fp8: true,  vendor: 'nvidia', pcieGen: 5, gen: 'blackwell', hidden: true, tdp: 140, note: 'GB10 统一内存 · 桌面级' },
 ];
 
 /* 互联方式: bw = 卡间有效带宽 GB/s(单向),lat = 每次 allreduce 近似延迟 µs
@@ -67,25 +67,25 @@ const INTERCONNECTS = [
   { id: 'unified', name: '统一内存(片上)',       bw: 0,    lat: 0,  type: 'unified' },
 ];
 
-/* CPU平台: cores(核心数) channels(内存通道数,每通道DDR5-4800约38.4GB/s) vendor(品牌,硬件库分组用) */
+/* CPU平台: cores(核心数) channels(内存通道数,每通道DDR5-4800约38.4GB/s) vendor(品牌,硬件库分组用) tdp(W,典型功耗;×2 条目为双路合计) */
 const CPUS = [
-  { id: 'epyc-9654', name: 'AMD EPYC 9654 (96核)',  cores: 96, channels: 12, vendor: 'amd',   note: '12通道 DDR5 · 服务器' },
-  { id: 'xeon-8480', name: 'Intel Xeon 8480+ (56核)', cores: 56, channels: 8, vendor: 'intel', note: '8通道 DDR5 · 服务器' },
-  { id: 'xeon-e5v4', name: 'Intel Xeon E5-2698 v4 ×2 (40核)', cores: 40, channels: 12, vendor: 'intel', note: 'DGX-1 原装 · 双路 Broadwell · DDR4' },
-  { id: 'xeon-gold-6326', name: 'Intel Xeon Gold 6326 ×2 (32核)', cores: 32, channels: 16, vendor: 'intel', note: '思腾合力原装 · 双路 Ice Lake · DDR4-3200' },
-  { id: 'ryzen',     name: 'Ryzen 9 7950X (16核)',   cores: 16, channels: 2, vendor: 'amd',   note: '双通道 DDR5 · 消费级' },
+  { id: 'epyc-9654', name: 'AMD EPYC 9654 (96核)',  cores: 96, channels: 12, vendor: 'amd',   tdp: 360, note: '12通道 DDR5 · 服务器' },
+  { id: 'xeon-8480', name: 'Intel Xeon 8480+ (56核)', cores: 56, channels: 8, vendor: 'intel', tdp: 350, note: '8通道 DDR5 · 服务器' },
+  { id: 'xeon-e5v4', name: 'Intel Xeon E5-2698 v4 ×2 (40核)', cores: 40, channels: 12, vendor: 'intel', tdp: 270, note: 'DGX-1 原装 · 双路 Broadwell · DDR4(135W×2)' },
+  { id: 'xeon-gold-6326', name: 'Intel Xeon Gold 6326 ×2 (32核)', cores: 32, channels: 16, vendor: 'intel', tdp: 370, note: '思腾合力原装 · 双路 Ice Lake · DDR4-3200(185W×2)' },
+  { id: 'ryzen',     name: 'Ryzen 9 7950X (16核)',   cores: 16, channels: 2, vendor: 'amd',   tdp: 170, note: '双通道 DDR5 · 消费级' },
 ];
 
 const RAMS = [
-  { id: 'ddr5-32', name: 'DDR5-4800 32GB',  gb: 32, bw: 38.4, note: '单条 · 单通道带宽38.4GB/s' },
-  { id: 'ddr5-64', name: 'DDR5-4800 64GB',  gb: 64, bw: 38.4, note: '单条 · RDIMM' },
+  { id: 'ddr5-32', name: 'DDR5-4800 32GB',  gb: 32, bw: 38.4, tdp: 6, note: '单条 · 单通道带宽38.4GB/s' },
+  { id: 'ddr5-64', name: 'DDR5-4800 64GB',  gb: 64, bw: 38.4, tdp: 8, note: '单条 · RDIMM' },
 ];
 
 /* FPGA 加速卡/开发板: vram(GB,板载DDR4可用容量) bw(GB/s,DDR4实测带宽) tf(等效TFLOPS,INT8,含当前串行核利用率)
    vendor 'fpga':常规推理框架不直接支持(自定义 HLS 运行时),llama.cpp/Transformers 仅作带宽受限代理估算;
    与 GPU 混插会被混合厂商检查拦截(FPGA+GPU 异构算子卸载暂不建模) */
 const FPGAS = [
-  { id: 'axu9egb', name: 'ALINX AXU9EGB (ZU9EG)', vram: 4, bw: 12.8, tf: 0.005, cc: null, nvlink: false, fp8: false, vendor: 'fpga', pcieGen: 3,
+  { id: 'axu9egb', name: 'ALINX AXU9EGB (ZU9EG)', vram: 4, bw: 12.8, tf: 0.005, cc: null, nvlink: false, fp8: false, vendor: 'fpga', pcieGen: 3, tdp: 15,
     note: 'PS DDR4 4GB/64bit(实测DDR4-1600≈12.8GB/s)+ PL DDR4 2GB · 2520 DSP@200MHz · Module16 LM Head 已上板验收(串行核≈5.5s/token) · 千兆网接主机 · 源:LLM_FPGA 工程' },
 ];
 

@@ -206,6 +206,8 @@ for (const gens of Object.values(GPU_GEN_ORDER)) for (const [id, label] of gens)
 
 const HW_CATALOG = { gpu: GPUS, cpu: CPUS, ram: RAMS, fpga: FPGAS, appliance: APPLIANCES };
 const HW_ICON = { gpu: '🖧', cpu: '🧠', ram: '🧩', fpga: '🔧', appliance: '🗄' };
+/* 功耗格式化:入参瓦数 */
+function hwPower(w) { return w == null ? '—' : (w >= 1000 ? (w / 1000).toFixed(2) + ' kW' : Math.round(w) + ' W'); }
 /* 每类硬件的详情字段:[标签, 取值] */
 const HW_FIELDS = {
   gpu: (g) => [
@@ -218,6 +220,7 @@ const HW_FIELDS = {
     ['卡间互联', g.nvlink ? (g.nvGen ? 'NVLink ' + g.nvGen + '.0' : '有') : '无'],
     ['主机接口', g.pcieGen ? 'PCIe ' + g.pcieGen + '.0 x16' : '—'],
     ['FP8 支持', g.fp8 ? '支持(需 CC≥8.9)' : '不支持'],
+    ['典型功耗', hwPower(g.tdp) + (g.vendor === 'apple' ? '(SoC 整包)' : g.tdp >= 1000 ? '(液冷)' : '')],
     ['备注', g.note],
   ],
   cpu: (c) => [
@@ -225,11 +228,13 @@ const HW_FIELDS = {
     ['核心数', c.cores + ' 核'],
     ['内存通道', c.channels + ' 通道'],
     ['通道带宽上限', (c.channels * 38.4).toFixed(1) + ' GB/s(受内存条数限制)'],
+    ['典型功耗', hwPower(c.tdp) + (c.name.includes('×2') ? '(双路合计)' : '')],
     ['备注', c.note],
   ],
   ram: (r) => [
     ['容量', r.gb + ' GB'],
     ['带宽', r.bw + ' GB/s/条'],
+    ['典型功耗', hwPower(r.tdp) + '/条'],
     ['备注', r.note],
   ],
   fpga: (f) => [
@@ -238,20 +243,24 @@ const HW_FIELDS = {
     ['存储带宽', f.bw + ' GB/s'],
     ['INT8 等效算力', (f.tf * 1000).toFixed(0) + ' GFLOPS(串行核现状)'],
     ['主机接口', f.pcieGen ? 'PCIe ' + f.pcieGen + '.0 x16' : '千兆以太网'],
+    ['典型功耗', hwPower(f.tdp) + '(典型,估)'],
     ['备注', f.note],
   ],
   appliance: (a) => {
     const rows = [['平台品牌', VENDOR_LABELS[a.vendor] || a.vendor || '—']];
+    let pw = 0;
     for (const [id, n] of Object.entries(a.spec.gpus)) {
       const g = byId(GPUS, id);
-      if (g) rows.push(['GPU', n + ' × ' + g.name + '(共 ' + (n * g.vram) + ' GB 显存)']);
+      if (g) { rows.push(['GPU', n + ' × ' + g.name + '(共 ' + (n * g.vram) + ' GB 显存)']); pw += g.tdp * n; }
     }
     for (const [id, n] of Object.entries(a.spec.cpus || {})) {
       const c = byId(CPUS, id);
-      if (c) rows.push(['CPU', (n > 1 ? n + ' × ' : '') + c.name]);
+      if (c) { rows.push(['CPU', (n > 1 ? n + ' × ' : '') + c.name]); pw += c.tdp * n; }
     }
+    const ramN = Object.entries(a.spec.rams || {}).reduce((s, [id, n]) => s + (byId(RAMS, id) ? n : 0), 0);
     const ramGB = Object.entries(a.spec.rams || {}).reduce((s, [id, n]) => s + (byId(RAMS, id) ? byId(RAMS, id).gb * n : 0), 0);
-    if (ramGB) rows.push(['内存', ramGB + ' GB']);
+    if (ramGB) { rows.push(['内存', ramGB + ' GB']); pw += ramN * 8; }
+    rows.push(['整机最大功耗', hwPower(pw) + '(部件 TDP 合计)']);
     rows.push(['备注', a.note]);
     return rows;
   },
@@ -425,11 +434,13 @@ function renderBoard() {
   const vram = accel.reduce((s, g) => s + g.vram, 0);
   const bwSum = accel.reduce((s, g) => s + g.bw, 0);
   const ramGB = rams.reduce((s, r) => s + r.gb, 0);
+  const powerW = accel.reduce((s, g) => s + (g.tdp || 0), 0) + cpus.reduce((s, c) => s + (c.tdp || 0), 0) + rams.reduce((s, r) => s + (r.tdp || 0), 0);
   const icText = ic ? (ic.bw ? ic.name.split(' (')[0] + ' · <b>' + ic.bw + '</b> GB/s' : ic.name) : '—';
   $('#boardTotals').innerHTML =
     '<span>GPU <b>' + gpus.length + '</b> 块</span>' + (fpgas.length ? '<span>FPGA <b>' + fpgas.length + '</b> 块</span>' : '') +
     '<span>显存 <b>' + vram + '</b> GB</span>' +
     '<span>带宽合计 <b>' + bwSum + '</b> GB/s</span>' +
+    (powerW > 0 ? '<span>功耗 <b>~' + (powerW >= 1000 ? (powerW / 1000).toFixed(1) + ' kW' : powerW + ' W') + '</b>(TDP 合计)</span>' : '') +
     '<span>互联 <b>' + (accel.length > 1 ? icText : (accel.length ? '单设备' : '—')) + '</b></span>' +
     '<span>CPU <b>' + cpus.length + '</b> 个平台</span><span>内存 <b>' + ramGB + '</b> GB</span>';
   const autoOpt = $('#icSel option[value="auto"]');
