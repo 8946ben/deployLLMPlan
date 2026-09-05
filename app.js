@@ -129,29 +129,29 @@ function buildPalette() {
     '<div class="pal-card vendor-' + g.vendor + '" draggable="true" data-type="gpu" data-id="' + g.id + '">' +
     '<div class="pal-name">🖧 ' + esc(g.name) + '</div>' +
     '<div class="pal-spec">' + g.vram + 'GB · ' + g.bw + 'GB/s' + (g.vendor === 'nvidia' ? ' · CC' + g.cc : '') + '</div>' +
-    '<div class="pal-note">' + esc(g.note) + '</div><button class="add-btn" title="添加到画板">+</button></div>';
+    '<div class="pal-note">' + esc(g.note) + '</div><button class="info-btn" title="查看硬件详细属性">ⓘ</button></div>';
   const cpuCard = (c) =>
     '<div class="pal-card vendor-cpu" draggable="true" data-type="cpu" data-id="' + c.id + '">' +
     '<div class="pal-name">🧠 ' + esc(c.name) + '</div>' +
     '<div class="pal-spec">' + c.cores + '核 · ' + c.channels + '通道DDR5</div>' +
-    '<div class="pal-note">' + esc(c.note) + '</div><button class="add-btn">+</button></div>';
+    '<div class="pal-note">' + esc(c.note) + '</div><button class="info-btn" title="查看硬件详细属性">ⓘ</button></div>';
   const ramCard = (r) =>
     '<div class="pal-card vendor-ram" draggable="true" data-type="ram" data-id="' + r.id + '">' +
     '<div class="pal-name">🧩 ' + esc(r.name) + '</div>' +
     '<div class="pal-spec">+38.4GB/s/条</div>' +
-    '<div class="pal-note">' + esc(r.note) + '</div><button class="add-btn">+</button></div>';
+    '<div class="pal-note">' + esc(r.note) + '</div><button class="info-btn" title="查看硬件详细属性">ⓘ</button></div>';
   const appCard = (a) => {
     const gp = Object.entries(a.spec.gpus).map(([id, n]) => (n > 1 ? n + '×' : '') + shortN(byId(GPUS, id))).join(' + ');
     return '<div class="pal-card vendor-' + (a.vendor || 'app') + '" draggable="true" data-type="appliance" data-id="' + a.id + '">' +
       '<div class="pal-name">🗄 ' + esc(a.name) + '</div>' +
       '<div class="pal-spec">' + esc(gp) + '</div>' +
-      '<div class="pal-note">' + esc(a.note) + '</div><button class="add-btn" title="整机展开添加到画板">+</button></div>';
+      '<div class="pal-note">' + esc(a.note) + '</div><button class="info-btn" title="查看硬件详细属性">ⓘ</button></div>';
   };
   const fpgaCard = (f) =>
     '<div class="pal-card vendor-fpga" draggable="true" data-type="fpga" data-id="' + f.id + '">' +
     '<div class="pal-name">🔧 ' + esc(f.name) + '</div>' +
     '<div class="pal-spec">' + f.vram + 'GB · ' + f.bw + 'GB/s · ' + (f.tf >= 1 ? f.tf.toFixed(0) : (f.tf * 1000).toFixed(0) + 'G') + ' FLOPS等效</div>' +
-    '<div class="pal-note">' + esc(f.note) + '</div><button class="add-btn" title="添加到画板">+</button></div>';
+    '<div class="pal-note">' + esc(f.note) + '</div><button class="info-btn" title="查看硬件详细属性">ⓘ</button></div>';
 
   // GPU:厂商 → 代际 → 性能降序
   const vis = GPUS.filter(g => !g.hidden);
@@ -194,11 +194,79 @@ function buildPalette() {
   $('#palApp').innerHTML = appHtml;
   $$('.pal-card').forEach(el => {
     el.addEventListener('dragstart', e => { e.dataTransfer.setData('text/plain', el.dataset.type + ':' + el.dataset.id); e.dataTransfer.effectAllowed = 'copy'; });
-    el.addEventListener('click', e => { if (e.target.classList.contains('add-btn')) return; addItem(el.dataset.type, el.dataset.id); });
-    const btn = el.querySelector('.add-btn');
-    if (btn) btn.addEventListener('click', () => addItem(el.dataset.type, el.dataset.id));
+    el.addEventListener('click', e => { if (e.target.classList.contains('info-btn')) return; addItem(el.dataset.type, el.dataset.id); });
+    const btn = el.querySelector('.info-btn');
+    if (btn) btn.addEventListener('click', () => openHwDetail(el.dataset.type, el.dataset.id));
   });
 }
+
+/* ---------------- 硬件详情弹窗 ---------------- */
+const GEN_LABELS = {};
+for (const gens of Object.values(GPU_GEN_ORDER)) for (const [id, label] of gens) GEN_LABELS[id] = label;
+
+const HW_CATALOG = { gpu: GPUS, cpu: CPUS, ram: RAMS, fpga: FPGAS, appliance: APPLIANCES };
+const HW_ICON = { gpu: '🖧', cpu: '🧠', ram: '🧩', fpga: '🔧', appliance: '🗄' };
+/* 每类硬件的详情字段:[标签, 取值] */
+const HW_FIELDS = {
+  gpu: (g) => [
+    ['品牌', VENDOR_LABELS[g.vendor] || g.vendor],
+    ['微架构代际', GEN_LABELS[g.gen] || g.gen || '—'],
+    ['显存容量', g.vram + ' GB'],
+    ['显存带宽', g.bw + ' GB/s'],
+    ['FP16 Tensor 算力', g.tf + ' TFLOPS'],
+    ['CUDA 计算能力', g.cc == null ? '—' : g.cc],
+    ['卡间互联', g.nvlink ? (g.nvGen ? 'NVLink ' + g.nvGen + '.0' : '有') : '无'],
+    ['主机接口', g.pcieGen ? 'PCIe ' + g.pcieGen + '.0 x16' : '—'],
+    ['FP8 支持', g.fp8 ? '支持(需 CC≥8.9)' : '不支持'],
+    ['备注', g.note],
+  ],
+  cpu: (c) => [
+    ['品牌', VENDOR_LABELS[c.vendor] || c.vendor || '—'],
+    ['核心数', c.cores + ' 核'],
+    ['内存通道', c.channels + ' 通道'],
+    ['通道带宽上限', (c.channels * 38.4).toFixed(1) + ' GB/s(受内存条数限制)'],
+    ['备注', c.note],
+  ],
+  ram: (r) => [
+    ['容量', r.gb + ' GB'],
+    ['带宽', r.bw + ' GB/s/条'],
+    ['备注', r.note],
+  ],
+  fpga: (f) => [
+    ['类别', 'FPGA 加速卡/开发板'],
+    ['板载存储', f.vram + ' GB DDR4'],
+    ['存储带宽', f.bw + ' GB/s'],
+    ['INT8 等效算力', (f.tf * 1000).toFixed(0) + ' GFLOPS(串行核现状)'],
+    ['主机接口', f.pcieGen ? 'PCIe ' + f.pcieGen + '.0 x16' : '千兆以太网'],
+    ['备注', f.note],
+  ],
+  appliance: (a) => {
+    const rows = [['平台品牌', VENDOR_LABELS[a.vendor] || a.vendor || '—']];
+    for (const [id, n] of Object.entries(a.spec.gpus)) {
+      const g = byId(GPUS, id);
+      if (g) rows.push(['GPU', n + ' × ' + g.name + '(共 ' + (n * g.vram) + ' GB 显存)']);
+    }
+    for (const [id, n] of Object.entries(a.spec.cpus || {})) {
+      const c = byId(CPUS, id);
+      if (c) rows.push(['CPU', (n > 1 ? n + ' × ' : '') + c.name]);
+    }
+    const ramGB = Object.entries(a.spec.rams || {}).reduce((s, [id, n]) => s + (byId(RAMS, id) ? byId(RAMS, id).gb * n : 0), 0);
+    if (ramGB) rows.push(['内存', ramGB + ' GB']);
+    rows.push(['备注', a.note]);
+    return rows;
+  },
+};
+
+function openHwDetail(type, id) {
+  const it = byId(HW_CATALOG[type], id);
+  if (!it) return;
+  $('#hwModalTitle').textContent = (HW_ICON[type] || '') + ' ' + it.name;
+  const rows = (HW_FIELDS[type] || (() => []))(it);
+  $('#hwModalBody').innerHTML = '<table class="hw-table">' +
+    rows.map(([k, v]) => '<tr><td>' + esc(k) + '</td><td>' + esc(v) + '</td></tr>').join('') + '</table>';
+  $('#hwModal').hidden = false;
+}
+function closeHwDetail() { $('#hwModal').hidden = true; }
 
 /* 整机入板 = 展开为组成部件(GPU/CPU/内存),并以 grp 分组标记;画板上整机组渲染为虚框分区,可整体移除 */
 function addAppliance(a) {
@@ -652,6 +720,11 @@ function bindEvents() {
     if (expandedDetails.has(key)) expandedDetails.delete(key); else expandedDetails.add(key);
     renderReport();
   });
+
+  // 硬件详情弹窗:关闭按钮 / 点击遮罩 / Esc
+  $('#hwModalClose').addEventListener('click', closeHwDetail);
+  $('#hwModal').addEventListener('click', e => { if (e.target.id === 'hwModal') closeHwDetail(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#hwModal').hidden) closeHwDetail(); });
 }
 
 document.addEventListener('DOMContentLoaded', init);

@@ -73,7 +73,7 @@
   <!-- 中列:硬件库 + 画板 -->
   <section class="col-center">
     <div class="panel">
-      <h2><span class="step">④</span> 硬件库 <small class="hint">点击卡片或 + 添加,也可直接拖到画板</small></h2>
+      <h2><span class="step">④</span> 硬件库 <small class="hint">点击卡片添加,ⓘ 查看详细属性,也可拖到画板</small></h2>
       <h4>GPU</h4>
       <div id="palGpu" class="palette"></div>
       <h4>CPU 平台</h4>
@@ -105,6 +105,12 @@
 </main>
 
 <div id="toast" class="toast"></div>
+<div id="hwModal" class="hw-overlay" hidden>
+  <div class="hw-modal">
+    <div class="hw-modal-head"><span id="hwModalTitle"></span><button id="hwModalClose" class="hw-close" title="关闭">✕</button></div>
+    <div id="hwModalBody" class="hw-modal-body"></div>
+  </div>
+</div>
 <script src="data.js"></script>
 <script src="engine.js"></script>
 <script src="app.js"></script>

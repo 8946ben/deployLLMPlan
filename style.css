@@ -120,11 +120,39 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
 .pal-name { font-size: 12.5px; font-weight: 600; padding-right: 18px; }
 .pal-spec { font-size: 11px; color: var(--accent); margin-top: 2px; }
 .pal-note { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
-.add-btn {
-  position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 6px;
-  background: #4f8cff22; color: var(--accent); border: none; cursor: pointer; font-size: 14px; line-height: 1;
+.info-btn {
+  position: absolute; top: 6px; right: 6px; width: 20px; height: 20px; border-radius: 50%;
+  background: #4f8cff22; color: var(--accent); border: none; cursor: pointer;
+  font-size: 11px; line-height: 1; font-weight: 700;
 }
-.add-btn:hover { background: #4f8cff44; }
+.info-btn:hover { background: #4f8cff44; }
+
+/* ---------- 硬件详情弹窗 ---------- */
+.hw-overlay {
+  position: fixed; inset: 0; z-index: 98; background: #000000aa; backdrop-filter: blur(3px);
+  display: flex; align-items: center; justify-content: center;
+}
+.hw-overlay[hidden] { display: none; }
+.hw-modal {
+  width: min(480px, 92vw); max-height: 80vh; overflow: auto;
+  background: var(--panel); border: 1px solid var(--border2); border-radius: 14px;
+  box-shadow: 0 12px 40px #00000080;
+}
+.hw-modal-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-size: 14px; font-weight: 700; position: sticky; top: 0; background: var(--panel);
+}
+.hw-close {
+  flex: none; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; font-size: 12px; line-height: 1;
+  background: #ffffff0d; color: var(--text); border: 1px solid var(--border2);
+}
+.hw-close:hover { background: #ffffff1c; }
+.hw-modal-body { padding: 10px 16px 14px; }
+.hw-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.hw-table td { padding: 6px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.hw-table td:first-child { color: var(--muted); width: 38%; white-space: nowrap; }
+.hw-table td:last-child { color: var(--text); }
 .vendor-nvidia .pal-spec { color: #76b900; }
 .vendor-amd .pal-spec { color: #ed4c5c; }
 .vendor-apple .pal-spec { color: #c9cdd4; }
