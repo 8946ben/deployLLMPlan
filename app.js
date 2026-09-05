@@ -128,29 +128,29 @@ function buildPalette() {
   const gpuCard = (g) =>
     '<div class="pal-card vendor-' + g.vendor + '" draggable="true" data-type="gpu" data-id="' + g.id + '">' +
     '<div class="pal-name">🖧 ' + esc(g.name) + '</div>' +
-    '<div class="pal-spec">' + g.vram + 'GB · ' + g.bw + 'GB/s' + (g.vendor === 'nvidia' ? ' · CC' + g.cc : '') + '</div>' +
+    '<div class="pal-spec">' + g.vram + 'GB · ' + g.bw + 'GB/s' + (g.vendor === 'nvidia' ? ' · CC' + g.cc : '') + ' · ' + priceShort(g.price) + '</div>' +
     '<div class="pal-note">' + esc(g.note) + '</div><button class="info-btn" title="查看硬件详细属性">ⓘ</button></div>';
   const cpuCard = (c) =>
     '<div class="pal-card vendor-cpu" draggable="true" data-type="cpu" data-id="' + c.id + '">' +
     '<div class="pal-name">🧠 ' + esc(c.name) + '</div>' +
-    '<div class="pal-spec">' + c.cores + '核 · ' + c.channels + '通道DDR5</div>' +
+    '<div class="pal-spec">' + c.cores + '核 · ' + c.channels + '通道DDR5 · ' + priceShort(c.price) + '</div>' +
     '<div class="pal-note">' + esc(c.note) + '</div><button class="info-btn" title="查看硬件详细属性">ⓘ</button></div>';
   const ramCard = (r) =>
     '<div class="pal-card vendor-ram" draggable="true" data-type="ram" data-id="' + r.id + '">' +
     '<div class="pal-name">🧩 ' + esc(r.name) + '</div>' +
-    '<div class="pal-spec">+38.4GB/s/条</div>' +
+    '<div class="pal-spec">+38.4GB/s/条 · ' + priceShort(r.price) + '</div>' +
     '<div class="pal-note">' + esc(r.note) + '</div><button class="info-btn" title="查看硬件详细属性">ⓘ</button></div>';
   const appCard = (a) => {
     const gp = Object.entries(a.spec.gpus).map(([id, n]) => (n > 1 ? n + '×' : '') + shortN(byId(GPUS, id))).join(' + ');
     return '<div class="pal-card vendor-' + (a.vendor || 'app') + '" draggable="true" data-type="appliance" data-id="' + a.id + '">' +
       '<div class="pal-name">🗄 ' + esc(a.name) + '</div>' +
-      '<div class="pal-spec">' + esc(gp) + '</div>' +
+      '<div class="pal-spec">' + esc(gp) + ' · ' + priceShort(a.price) + '</div>' +
       '<div class="pal-note">' + esc(a.note) + '</div><button class="info-btn" title="查看硬件详细属性">ⓘ</button></div>';
   };
   const fpgaCard = (f) =>
     '<div class="pal-card vendor-fpga" draggable="true" data-type="fpga" data-id="' + f.id + '">' +
     '<div class="pal-name">🔧 ' + esc(f.name) + '</div>' +
-    '<div class="pal-spec">' + f.vram + 'GB · ' + f.bw + 'GB/s · ' + (f.tf >= 1 ? f.tf.toFixed(0) : (f.tf * 1000).toFixed(0) + 'G') + ' FLOPS等效</div>' +
+    '<div class="pal-spec">' + f.vram + 'GB · ' + f.bw + 'GB/s · ' + (f.tf >= 1 ? f.tf.toFixed(0) : (f.tf * 1000).toFixed(0) + 'G') + ' FLOPS等效 · ' + priceShort(f.price) + '</div>' +
     '<div class="pal-note">' + esc(f.note) + '</div><button class="info-btn" title="查看硬件详细属性">ⓘ</button></div>';
 
   // GPU:厂商 → 代际 → 性能降序
@@ -208,6 +208,15 @@ const HW_CATALOG = { gpu: GPUS, cpu: CPUS, ram: RAMS, fpga: FPGAS, appliance: AP
 const HW_ICON = { gpu: '🖧', cpu: '🧠', ram: '🧩', fpga: '🔧', appliance: '🗄' };
 /* 功耗格式化:入参瓦数 */
 function hwPower(w) { return w == null ? '—' : (w >= 1000 ? (w / 1000).toFixed(2) + ' kW' : Math.round(w) + ' W'); }
+/* 价格格式化:完整形态(带千分位)与紧凑形态(卡片/汇总条) */
+function priceFull(p) { return p == null ? null : '$' + p.toLocaleString('en-US'); }
+function priceShort(p) { return p == null ? '—' : (p >= 1000 ? '$' + (p / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : '$' + p); }
+/* 详情弹窗里的价格单元格:值 + 可跳转来源 */
+function priceCell(it) {
+  if (it.price == null) return '—';
+  const url = it.priceUrl ? ' · <a href="' + esc(it.priceUrl) + '" target="_blank" rel="noopener">来源/购买 →</a>' : '(估,无来源)';
+  return { html: priceFull(it.price) + url };
+}
 /* 每类硬件的详情字段:[标签, 取值] */
 const HW_FIELDS = {
   gpu: (g) => [
@@ -221,6 +230,7 @@ const HW_FIELDS = {
     ['主机接口', g.pcieGen ? 'PCIe ' + g.pcieGen + '.0 x16' : '—'],
     ['FP8 支持', g.fp8 ? '支持(需 CC≥8.9)' : '不支持'],
     ['典型功耗', hwPower(g.tdp) + (g.vendor === 'apple' ? '(SoC 整包)' : g.tdp >= 1000 ? '(液冷)' : '')],
+    ['参考单价', priceCell(g)],
     ['备注', g.note],
   ],
   cpu: (c) => [
@@ -229,12 +239,14 @@ const HW_FIELDS = {
     ['内存通道', c.channels + ' 通道'],
     ['通道带宽上限', (c.channels * 38.4).toFixed(1) + ' GB/s(受内存条数限制)'],
     ['典型功耗', hwPower(c.tdp) + (c.name.includes('×2') ? '(双路合计)' : '')],
+    ['参考单价', priceCell(c) ],
     ['备注', c.note],
   ],
   ram: (r) => [
     ['容量', r.gb + ' GB'],
     ['带宽', r.bw + ' GB/s/条'],
     ['典型功耗', hwPower(r.tdp) + '/条'],
+    ['参考单价', priceCell(r)],
     ['备注', r.note],
   ],
   fpga: (f) => [
@@ -244,6 +256,7 @@ const HW_FIELDS = {
     ['INT8 等效算力', (f.tf * 1000).toFixed(0) + ' GFLOPS(串行核现状)'],
     ['主机接口', f.pcieGen ? 'PCIe ' + f.pcieGen + '.0 x16' : '千兆以太网'],
     ['典型功耗', hwPower(f.tdp) + '(典型,估)'],
+    ['参考单价', priceCell(f)],
     ['备注', f.note],
   ],
   appliance: (a) => {
@@ -261,6 +274,7 @@ const HW_FIELDS = {
     const ramGB = Object.entries(a.spec.rams || {}).reduce((s, [id, n]) => s + (byId(RAMS, id) ? byId(RAMS, id).gb * n : 0), 0);
     if (ramGB) { rows.push(['内存', ramGB + ' GB']); pw += ramN * 8; }
     rows.push(['整机最大功耗', hwPower(pw) + '(部件 TDP 合计)']);
+    rows.push(['整机售价', priceCell(a)]);
     rows.push(['备注', a.note]);
     return rows;
   },
@@ -272,7 +286,7 @@ function openHwDetail(type, id) {
   $('#hwModalTitle').textContent = (HW_ICON[type] || '') + ' ' + it.name;
   const rows = (HW_FIELDS[type] || (() => []))(it);
   $('#hwModalBody').innerHTML = '<table class="hw-table">' +
-    rows.map(([k, v]) => '<tr><td>' + esc(k) + '</td><td>' + esc(v) + '</td></tr>').join('') + '</table>';
+    rows.map(([k, v]) => '<tr><td>' + esc(k) + '</td><td>' + (v && typeof v === 'object' && v.html ? v.html : esc(v)) + '</td></tr>').join('') + '</table>';
   $('#hwModal').hidden = false;
 }
 function closeHwDetail() { $('#hwModal').hidden = true; }
@@ -435,12 +449,14 @@ function renderBoard() {
   const bwSum = accel.reduce((s, g) => s + g.bw, 0);
   const ramGB = rams.reduce((s, r) => s + r.gb, 0);
   const powerW = accel.reduce((s, g) => s + (g.tdp || 0), 0) + cpus.reduce((s, c) => s + (c.tdp || 0), 0) + rams.reduce((s, r) => s + (r.tdp || 0), 0);
+  const priceSum = accel.reduce((s, g) => s + (g.price || 0), 0) + cpus.reduce((s, c) => s + (c.price || 0), 0) + rams.reduce((s, r) => s + (r.price || 0), 0);
   const icText = ic ? (ic.bw ? ic.name.split(' (')[0] + ' · <b>' + ic.bw + '</b> GB/s' : ic.name) : '—';
   $('#boardTotals').innerHTML =
     '<span>GPU <b>' + gpus.length + '</b> 块</span>' + (fpgas.length ? '<span>FPGA <b>' + fpgas.length + '</b> 块</span>' : '') +
     '<span>显存 <b>' + vram + '</b> GB</span>' +
     '<span>带宽合计 <b>' + bwSum + '</b> GB/s</span>' +
     (powerW > 0 ? '<span>功耗 <b>~' + (powerW >= 1000 ? (powerW / 1000).toFixed(1) + ' kW' : powerW + ' W') + '</b>(TDP 合计)</span>' : '') +
+    (priceSum > 0 ? '<span>参考总价 <b>~' + priceShort(priceSum) + '</b></span>' : '') +
     '<span>互联 <b>' + (accel.length > 1 ? icText : (accel.length ? '单设备' : '—')) + '</b></span>' +
     '<span>CPU <b>' + cpus.length + '</b> 个平台</span><span>内存 <b>' + ramGB + '</b> GB</span>';
   const autoOpt = $('#icSel option[value="auto"]');

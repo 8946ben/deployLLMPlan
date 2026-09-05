@@ -7,6 +7,7 @@
 ## [0.3.0] - 2026-09-05(2644c1d)
 
 ### 新增
+- **价格信息**:全部硬件条目补充 USD 参考价(price)与可跳转来源(priceUrl,官方产品页/Intel ARK/Apple 官网/ALINX 官网/eBay·淘宝渠道页);详情弹窗新增「参考单价」行(来源链接可点击);硬件卡片显示简价;画板汇总条新增整板参考总价(按当前配置合计)。价格随行情变动,来源仅供追溯
 - **功耗信息**:全部硬件条目补充典型功耗(GPU 为 TDP,M2 Ultra/DGX Spark 为 SoC 整包,CPU ×2 条目为双路合计,DDR5 按条、FPGA 按板估);详情弹窗新增功耗行,整机显示部件 TDP 合计的整机最大功耗;画板汇总条新增整板功耗合计(≥1kW 自动以 kW 显示)
 - **FPGA 硬件类**:新增 Alinx AXU9EGB (ZU9EG) 开发板,规格取自 LLM_FPGA 实测工程(PS DDR4 4GB/64bit,实测 DDR4-1600 ≈12.8GB/s,2520 DSP,Module16 LM Head 已上板验收);FPGA 走自定义 HLS 运行时估算——选 vLLM/SGLang/TRT-LLM 会被拦截,llama.cpp/Transformers 作带宽受限代理并提示为上界;画板上经千兆以太网(1GbE)接入主机
 - **整机类硬件**:硬件库新增「整机」分类,添加到画板时自动展开为组成部件(GPU/CPU/内存),接入既有分析与拓扑逻辑;首批成员 **NVIDIA DGX-1**(8×V100-SXM2-32GB · 双路E5-2698 v4 · 512GB · NVLink2 全互联)与**思腾合力 GPU 服务器**(3×V100S-PCIE-32GB · 双路Gold 6326 · 256GB · 无NVLink桥接走 PCIe),两台配置均已 SSH 实测核实(nvidia-smi/lscpu/free)

@@ -153,6 +153,8 @@ input.chk { width: 18px; height: 18px; margin-top: 6px; accent-color: var(--acce
 .hw-table td { padding: 6px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .hw-table td:first-child { color: var(--muted); width: 38%; white-space: nowrap; }
 .hw-table td:last-child { color: var(--text); }
+.hw-table td a { color: var(--accent); text-decoration: none; border-bottom: 1px dashed #4f8cff66; }
+.hw-table td a:hover { border-bottom-style: solid; }
 .vendor-nvidia .pal-spec { color: #76b900; }
 .vendor-amd .pal-spec { color: #ed4c5c; }
 .vendor-apple .pal-spec { color: #c9cdd4; }
